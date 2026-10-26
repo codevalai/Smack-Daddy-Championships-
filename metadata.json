@@ -1,0 +1,6 @@
+{
+  "name": "Smack Daddy Championships: Tech Titan Edition",
+  "description": "A 3D cinematic slap-fighting game where ten global tech leaders battle at a central metallic podium across corporate HQ arenas with realistic Power Slap physics, Story Mode progression, and A2A autonomous AI battles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
