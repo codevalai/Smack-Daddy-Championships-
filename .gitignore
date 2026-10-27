@@ -7,3 +7,5 @@ coverage/
 .env*
 !.env.example
 .aistudio/
+bun.lock
+public/assets/aistudio/Screenshot_*
