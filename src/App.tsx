@@ -33,6 +33,7 @@ type TurnPhase =
   | 'PLAYER_STRIKE_PREP'
   | 'PLAYER_STRIKE_METER'
   | 'PLAYER_DEFENSE_BRACE'
+  | 'FAKEOUT_WINDOW'
   | 'A2A_THINKING'
   | 'WINDUP_ANIMATING'
   | 'IMPACT_RESOLUTION'
@@ -50,6 +51,8 @@ export default function App() {
   const [isCodexOpen, setIsCodexOpen] = useState<boolean>(false);
   const [isPhysicsModalOpen, setIsPhysicsModalOpen] = useState<boolean>(false);
   const [showContenderStrip, setShowContenderStrip] = useState<boolean>(false);
+  const [isDockCollapsed, setIsDockCollapsed] = useState<boolean>(false);
+  const [failedPortraits, setFailedPortraits] = useState<Record<string, boolean>>({});
   const [cameraPreset, setCameraPreset] =
     useState<CameraPreset>('BROADCAST_WIDE');
   const [hudShake, setHudShake] = useState<boolean>(false);
@@ -57,14 +60,14 @@ export default function App() {
   const [impactPopupText, setImpactPopupText] = useState<string | null>(null);
 
   // Story Mode Progression State
-  const [storyChapter, setStoryChapter] = useState<number>(1);
-  const [unlockedChapter, setUnlockedChapter] = useState<number>(1);
-  const [playerFighterId, setPlayerFighterId] = useState<string>('musk');
+  const [storyChapter, setStoryChapter] = useState<number>(6);
+  const [unlockedChapter, setUnlockedChapter] = useState<number>(6);
+  const [playerFighterId, setPlayerFighterId] = useState<string>('bezos');
   const [useGoldenArmor, setUseGoldenArmor] = useState<boolean>(false);
 
   // A2A Fighter Selection State
-  const [a2aLeftId, setA2aLeftId] = useState<string>('musk');
-  const [a2aRightId, setA2aRightId] = useState<string>('huang');
+  const [a2aLeftId, setA2aLeftId] = useState<string>('bezos');
+  const [a2aRightId, setA2aRightId] = useState<string>('ellison');
   const [a2aPaused, setA2aPaused] = useState<boolean>(false);
   const [a2aSpeed, setA2aSpeed] = useState<number>(1);
 
@@ -90,7 +93,7 @@ export default function App() {
   const [rightSpecialActive, setRightSpecialActive] = useState<boolean>(false);
   const [crowdHypePercent, setCrowdHypePercent] = useState<number>(72);
 
-  // Comeback Buffs & Knockdown State
+  // Comeback Buffs, Knockdown & Flinch State
   const [leftComebackForceBonus, setLeftComebackForceBonus] =
     useState<number>(0);
   const [rightComebackForceBonus, setRightComebackForceBonus] =
@@ -107,6 +110,7 @@ export default function App() {
   const [activeKOType, setActiveKOType] =
     useState<Exclude<KOType, 'NONE'>>('CLEAN_KO');
   const [tenCountSeconds, setTenCountSeconds] = useState<number>(10.0);
+  const [holdSteadyTimeRemaining, setHoldSteadyTimeRemaining] = useState<number>(0.6);
 
   // Interactive Pre-Slap & Tap Mechanics State
   const [selectedWindUp, setSelectedWindUp] = useState<WindUpCount>(2);
@@ -121,7 +125,7 @@ export default function App() {
   const [lastSlapResult, setLastSlapResult] =
     useState<SlapCalculationResult | null>(null);
   const [statusBanner, setStatusBanner] = useState<string>(
-    'Cheek Alignment Phase — Tap Cheek Target & Cadence Count to hover palm over opponent cheek'
+    'Cheek Alignment Phase — Tap Cheek Target & Count to line up palm'
   );
   const [a2aThoughtText, setA2aThoughtText] = useState<string>(
     'Calibrating shoulder torque & cheek vector...'
@@ -175,19 +179,6 @@ export default function App() {
           ),
         };
       }
-      if (
-        gameMode === 'STORY' &&
-        side === 'RIGHT' &&
-        fighter.storyChapter === 10
-      ) {
-        return {
-          power: 93,
-          chinDurability: 89,
-          precision: 95,
-          windUpSpeed: 88,
-          koResistance: 94,
-        };
-      }
       return fighter.stats;
     },
     [gameMode, unlockedChapter]
@@ -217,7 +208,7 @@ export default function App() {
     );
   }, [leftFighter, rightFighter, gameMode, useGoldenArmor]);
 
-  // Sync Cheek Alignment Phase in 3D Scene during Player Prep
+  // Sync Cheek Alignment in 3D Scene during Player Prep
   useEffect(() => {
     if (
       gameMode === 'STORY' &&
@@ -299,19 +290,19 @@ export default function App() {
       if (activeMode === 'STORY') {
         setTurnPhase('PLAYER_STRIKE_PREP');
         setStatusBanner(
-          `Cheek Alignment vs ${rFighter.name} — Tap Cheek Target & Count to hover palm over cheek`
+          `Cheek Alignment vs ${rFighter.name} — Tap Cheek Target & Count to line up palm`
         );
       } else {
         setTurnPhase('A2A_THINKING');
         setStatusBanner(
-          `A2A Match: ${lFighter.name} vs ${rFighter.name} — Cheek alignment in progress`
+          `A2A Match: ${lFighter.name} vs ${rFighter.name} — Autonomous bout`
         );
       }
     },
     [gameMode, storyChapter, playerFighterId, a2aLeftId, a2aRightId]
   );
 
-  // Oscillating Timing Cursor for Strike Meter, Defense Brace, and KO Recovery Mini-Game
+  // Oscillating Timing Cursor
   useEffect(() => {
     if (
       turnPhase !== 'PLAYER_STRIKE_METER' &&
@@ -346,7 +337,7 @@ export default function App() {
     return () => cancelAnimationFrame(animId);
   }, [turnPhase, selectedWindUp, activeKOType]);
 
-  // Handle Round End & Transition to Next Round (or Match End)
+  // Conclude Round
   const ConcludeRound = useCallback(
     (
       roundWinnerSide: 'LEFT' | 'RIGHT' | 'DRAW',
@@ -435,7 +426,7 @@ export default function App() {
             );
             setTurnPhase('PLAYER_DEFENSE_BRACE');
             setStatusBanner(
-              `Round ${nextRoundNum} • ${rightFighter.name} aligns palm to your cheek — Tap to Brace Chin`
+              `Round ${nextRoundNum} • ${rightFighter.name} measures your cheek — Brace Chin!`
             );
           }
         } else {
@@ -460,7 +451,7 @@ export default function App() {
     ]
   );
 
-  // 10-Count Countdown & Autonomous A2A KO Recovery Execution
+  // 10-Count Mini-Game
   useEffect(() => {
     if (turnPhase !== 'KO_RECOVERY_MINIGAME') return;
 
@@ -552,7 +543,7 @@ export default function App() {
             winnerSide === 'LEFT' ? leftFighter : rightFighter;
           ConcludeRound(
             winnerSide,
-            `${koSpec.name} • ${downedFighter.name} failed the 10-Count • ${winnerFighter.name} wins Round ${round}`,
+            `${koSpec.name} • ${downedFighter.name} failed 10-Count • ${winnerFighter.name} wins Round ${round}`,
             activeKOType
           );
         }
@@ -611,7 +602,7 @@ export default function App() {
     ConcludeRound,
   ]);
 
-  // Execute a 5-Phase Slap Exchange
+  // Execute Slap Sequence
   const executeSlapSequence = useCallback(
     (
       activeStriker: 'LEFT' | 'RIGHT',
@@ -658,6 +649,10 @@ export default function App() {
         }
       }
 
+      // Spoken pre-slap line
+      const preSlapQuote = soundEngine.getContenderTaunt(strikerProfile.id, 'PRE_SLAP');
+      soundEngine.speakTaunt(preSlapQuote, 1.05, 1.1);
+
       if (activeStriker === 'LEFT') {
         setLeftComebackForceBonus(0);
         setRightComebackBraceBonus(0);
@@ -686,7 +681,7 @@ export default function App() {
         setTimeout(() => {
           soundEngine.playCountBeep(i);
           setStatusBanner(
-            `${strikerProfile.name} • Shoulder Torque Load "ON ${windUpCount}" (${i}/${windUpCount})`
+            `${strikerProfile.name} • Torque Load "ON ${windUpCount}" (${i}/${windUpCount})`
           );
         }, (i - 1) * beatInterval);
       }
@@ -749,7 +744,8 @@ export default function App() {
             )
           );
 
-          soundEngine.playSlapImpact(result.finalDamage, result.isCriticalSlap);
+          // WebAudioEngine slap crack + sub-thud
+          soundEngine.playSlapSound(result.slapForce, result.isCriticalSlap);
           setTimeout(() => {
             soundEngine.playCrowdReaction(result.isKO);
             if (result.isKO) {
@@ -793,7 +789,7 @@ export default function App() {
             const koDef = KO_TYPE_DEFINITIONS[result.koType];
             setIsKOReplayActive(true);
             setStatusBanner(
-              `KO REPLAY CAMERA • ${koDef.name} • ${result.commentaryLine}`
+              `KO REPLAY • ${koDef.name} • ${result.commentaryLine}`
             );
 
             if (defenderSide === 'LEFT') {
@@ -807,7 +803,7 @@ export default function App() {
               setActiveKOType(result.koType as Exclude<KOType, 'NONE'>);
               setTurnPhase('KO_RECOVERY_MINIGAME');
               setStatusBanner(
-                `${koDef.name} • ${defenderProfile.name} DOWN • 10-Count Recovery Active`
+                `${koDef.name} • ${defenderProfile.name} DOWN • 10-Count Active`
               );
             }, 1550 / speedFactor);
             return;
@@ -843,7 +839,7 @@ export default function App() {
               if (nextStriker === 'LEFT') {
                 setTurnPhase('PLAYER_STRIKE_PREP');
                 setStatusBanner(
-                  `Cheek Alignment Phase • Tap Cheek Target & Count to align palm`
+                  `Cheek Alignment Phase • Tap Cheek Target & Count to line up palm`
                 );
               } else {
                 sceneControllerRef.current?.triggerCheekLineUp(
@@ -889,7 +885,7 @@ export default function App() {
     ]
   );
 
-  // Autonomous A2A Turn Loop
+  // Autonomous A2A Turn Loop with 30% Fakeout Chance for aggressive fighters
   useEffect(() => {
     if (gameMode !== 'A2A' || turnPhase !== 'A2A_THINKING' || a2aPaused) {
       return;
@@ -941,6 +937,30 @@ export default function App() {
       decision.chosenAngle
     );
 
+    // 30% chance of pre-slap fakeout bluff for aggressive AI fighters
+    const shouldFakeout =
+      Math.random() < 0.3 &&
+      (sFighter.id === 'musk' || sFighter.id === 'ellison' || sFighter.id === 'bezos');
+
+    if (shouldFakeout) {
+      setTimeout(() => {
+        sceneControllerRef.current?.triggerFakeout(activeStriker);
+        setImpactPopupText(`FAKEOUT! ${sFighter.name.toUpperCase()} BLUFFS!`);
+
+        // Check if defender flinches (50% chance)
+        if (Math.random() < 0.5) {
+          const defenderSide = activeStriker === 'LEFT' ? 'RIGHT' : 'LEFT';
+          sceneControllerRef.current?.triggerFlinchReaction(defenderSide);
+          setTimeout(() => {
+            setImpactPopupText(`FLINCHED! ${dFighter.name.toUpperCase()} -15% BRACE!`);
+            setTimeout(() => setImpactPopupText(null), 1200);
+          }, 350);
+        } else {
+          setTimeout(() => setImpactPopupText(null), 1000);
+        }
+      }, 400 / a2aSpeed);
+    }
+
     setTimeout(() => {
       sceneControllerRef.current?.updatePracticeSwingAndTorque(
         activeStriker,
@@ -950,7 +970,7 @@ export default function App() {
 
     setA2aThoughtText(decision.emotionalThought);
     setStatusBanner(
-      `${sFighter.name} aligns palm to ${dFighter.name}'s ${decision.chosenAngle.replace('_', ' ')} • "On ${decision.chosenWindUp}"`
+      `${sFighter.name} lines up ${dFighter.name}'s ${decision.chosenAngle.replace('_', ' ')} • "On ${decision.chosenWindUp}"`
     );
 
     const timer = setTimeout(() => {
@@ -962,7 +982,7 @@ export default function App() {
         defenseEval.braceQuality,
         decision.activateSpecial
       );
-    }, 1050 / a2aSpeed);
+    }, (shouldFakeout ? 1650 : 1050) / a2aSpeed);
 
     return () => clearTimeout(timer);
   }, [
@@ -984,6 +1004,7 @@ export default function App() {
     executeSlapSequence,
   ]);
 
+  // Player Input Handlers
   const handleSelectWindUp = (count: WindUpCount) => {
     setSelectedWindUp(count);
     soundEngine.playCountBeep(count);
@@ -1015,8 +1036,38 @@ export default function App() {
     );
     setTurnPhase('PLAYER_STRIKE_METER');
     setStatusBanner(
-      'Flinch-Bait & Torque Phase — Tap FLINCH-BAIT SWING to load shoulder torque, then Tap UNLEASH SLAP'
+      'Flinch-Bait & Torque Phase — Tap TORQUE SWING, or TRIGGER FAKEOUT, then UNLEASH SLAP'
     );
+  };
+
+  // Interactive Player Fakeout Trigger
+  const handlePlayerTriggerFakeout = () => {
+    if (turnPhase !== 'PLAYER_STRIKE_METER') return;
+    sceneControllerRef.current?.triggerFakeout('LEFT');
+    setImpactPopupText('DECOY WIND-UP! TESTING THE AIR!');
+
+    // 55% chance AI opponent flinches!
+    if (Math.random() < 0.55) {
+      setTimeout(() => {
+        sceneControllerRef.current?.triggerFlinchReaction('RIGHT');
+        setImpactPopupText(`FLINCHED! ${rightFighter.name.toUpperCase()} -15% BRACE!`);
+        setRightComebackBraceBonus(-0.15);
+        setTimeout(() => setImpactPopupText(null), 1400);
+      }, 400);
+    } else {
+      setTimeout(() => {
+        setImpactPopupText(`${rightFighter.name.toUpperCase()} HELD STEADY!`);
+        setTimeout(() => setImpactPopupText(null), 1200);
+      }, 400);
+    }
+  };
+
+  // Interactive Taunt Trigger (Triggers signature CEO celebration & voice line!)
+  const handleTriggerTaunt = () => {
+    sceneControllerRef.current?.triggerTaunt(strikerSide);
+    const activeProfile = strikerSide === 'LEFT' ? leftFighter : rightFighter;
+    setImpactPopupText(`${activeProfile.name.toUpperCase()} TAUNTS!`);
+    setTimeout(() => setImpactPopupText(null), 1600);
   };
 
   const handleTapPracticeSwing = () => {
@@ -1114,7 +1165,7 @@ export default function App() {
       }
 
       setStatusBanner(
-        `BEATS THE COUNT • ${leftFighter.name} recovers at ${koDef.recoveredHPPercent}% Chin Durability (${koDef.comebackBuffName})`
+        `BEATS THE COUNT • ${leftFighter.name} recovers at ${koDef.recoveredHPPercent}% Chin (${koDef.comebackBuffName})`
       );
 
       setTimeout(() => {
@@ -1133,7 +1184,7 @@ export default function App() {
     }
   };
 
-  const handleCycleCamera = () => {
+  const handleCycleCamera = useCallback(() => {
     const order: CameraPreset[] = [
       'BROADCAST_WIDE',
       'PRE_SLAP_PUSH',
@@ -1145,13 +1196,42 @@ export default function App() {
     const nextCam = order[nextIdx];
     setCameraPreset(nextCam);
     sceneControllerRef.current?.setCameraPreset(nextCam);
-  };
+  }, [cameraPreset]);
 
   const handleToggleMute = () => {
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
     soundEngine.muted = nextMuted;
   };
+
+  // Keyboard shortcuts (H: Toggle HUD Dock, C: Camera, T: Taunt, F: Fakeout, Space: Action)
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (isCodexOpen || isPhysicsModalOpen) return;
+      const key = e.key.toLowerCase();
+      if (key === 'h') {
+        setIsDockCollapsed((prev) => !prev);
+      } else if (key === 'c') {
+        handleCycleCamera();
+      } else if (key === 't') {
+        handleTriggerTaunt();
+      } else if (key === 'f' && gameMode === 'STORY' && turnPhase === 'PLAYER_STRIKE_METER') {
+        handlePlayerTriggerFakeout();
+      } else if (e.code === 'Space') {
+        e.preventDefault();
+        if (gameMode === 'STORY') {
+          if (turnPhase === 'PLAYER_STRIKE_PREP') handleLockCheekLineUp();
+          else if (turnPhase === 'PLAYER_STRIKE_METER') handlePlayerUnleashSlap();
+          else if (turnPhase === 'PLAYER_DEFENSE_BRACE') handleTapChinBrace();
+          else if (turnPhase === 'KO_RECOVERY_MINIGAME' && downedSide === 'LEFT') {
+            handlePlayerAttemptKORecovery();
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  });
 
   const activeKODef = KO_TYPE_DEFINITIONS[activeKOType];
   const globalSlapForceValue = lastSlapResult
@@ -1168,53 +1248,38 @@ export default function App() {
 
   return (
     <div
-      className={`relative w-screen h-[100dvh] overflow-hidden bg-[#050811] select-none font-sans transition-transform duration-150 ${
-        hudShake ? 'translate-x-1.5 -translate-y-1' : ''
+      className={`w-screen h-[100dvh] flex flex-col justify-between overflow-hidden bg-[#050811] select-none font-sans transition-transform duration-150 ${
+        hudShake ? 'translate-x-1 -translate-y-1' : ''
       }`}
     >
-      {/* Full-Viewport 3D WebGL Arena Canvas */}
-      <div
-        ref={canvasContainerRef}
-        className="absolute inset-0 w-full h-full z-0"
-      />
-
-      {/* Mid-Screen Impact Force & KO Callout Overlay */}
-      {impactPopupText && (
-        <div className="absolute inset-x-0 top-36 sm:top-40 z-20 flex justify-center pointer-events-none px-4">
-          <div className="font-display text-xl sm:text-4xl font-extrabold uppercase tracking-wider bg-gradient-to-b from-[#FFF3B0] via-[#F59E0B] to-[#EF4444] bg-clip-text text-transparent drop-shadow-[0_4px_24px_rgba(245,158,11,0.85)] text-center">
-            {impactPopupText}
-          </div>
-        </div>
-      )}
-
       {/* ===================================================================== */}
-      {/* TOP GLASS-MORPH HUD: Gold Banner + Frosted Glass Stats Strip          */}
+      {/* 1. TOP HEADER & SCOREBOARD (Strictly flex-none, max 18% height)        */}
       {/* ===================================================================== */}
       <header
-        className={`relative z-10 w-full transition-opacity duration-500 pointer-events-none ${
-          isKOReplayActive ? 'opacity-45' : 'opacity-100'
+        className={`flex-none max-h-[20vh] w-full z-20 transition-opacity duration-300 pointer-events-auto ${
+          isKOReplayActive ? 'opacity-40' : 'opacity-100'
         }`}
       >
-        {/* 1. SMACK DADDY CHAMPIONSHIPS WIDE GLOWING GOLD BANNER */}
-        <div className="w-full bg-gradient-to-r from-[#040710]/85 via-[#0F172A]/85 to-[#040710]/85 border-b border-[#D4AF37]/50 px-3 sm:px-6 py-1.5 flex flex-wrap items-center justify-between gap-2 pointer-events-auto shadow-[0_4px_20px_rgba(212,175,55,0.18)]">
-          <div className="flex items-center gap-3">
-            <h1 className="font-display text-base sm:text-2xl tracking-[0.14em] uppercase font-extrabold bg-gradient-to-b from-[#FFF3B0] via-[#D4AF37] to-[#9A7418] bg-clip-text text-transparent drop-shadow-[0_0_14px_rgba(212,175,55,0.55)]">
+        {/* Banner with metallic gold brand & control links */}
+        <div className="w-full bg-gradient-to-r from-[#040710]/95 via-[#0F172A]/90 to-[#040710]/95 border-b border-[#D4AF37]/50 px-3 sm:px-6 py-1.5 flex flex-wrap items-center justify-between gap-1 shadow-[0_4px_20px_rgba(212,175,55,0.18)]">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <h1 className="font-display text-xs sm:text-xl tracking-[0.14em] uppercase font-extrabold bg-gradient-to-b from-[#FFF3B0] via-[#D4AF37] to-[#9A7418] bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(212,175,55,0.55)] whitespace-nowrap shrink-0">
               SMACK DADDY CHAMPIONSHIPS
             </h1>
-            <span className="hidden md:inline font-mono text-[10px] tracking-[0.2em] uppercase text-[#FFF3B0]/80">
-              BATTLE OF THE TITANS • TECH GIANTS COLLIDE
+            <span className="hidden md:inline font-mono text-[9px] tracking-[0.2em] uppercase text-[#FFF3B0]/80 whitespace-nowrap shrink-0">
+              BATTLE OF THE TITANS
             </span>
           </div>
 
-          <nav className="flex items-center gap-2.5 sm:gap-4 text-[11px] sm:text-xs font-mono uppercase tracking-wider">
+          <nav className="flex items-center gap-1.5 sm:gap-3 text-[10px] sm:text-xs font-mono uppercase tracking-wider">
             <button
               onClick={() => {
                 setGameMode('STORY');
                 resetMatch('STORY', storyChapter);
               }}
-              className={`min-h-[34px] px-2 cursor-pointer transition-all ${
+              className={`min-h-[30px] px-2 cursor-pointer transition-all whitespace-nowrap shrink-0 ${
                 gameMode === 'STORY'
-                  ? 'text-[#FFF3B0] font-bold border-b-2 border-[#D4AF37] drop-shadow-[0_0_8px_rgba(212,175,55,0.85)]'
+                  ? 'text-[#FFF3B0] font-bold border-b-2 border-[#D4AF37]'
                   : 'text-[#94A3B8] hover:text-white'
               }`}
             >
@@ -1225,9 +1290,9 @@ export default function App() {
                 setGameMode('A2A');
                 resetMatch('A2A', storyChapter);
               }}
-              className={`min-h-[34px] px-2 cursor-pointer transition-all ${
+              className={`min-h-[30px] px-2 cursor-pointer transition-all whitespace-nowrap shrink-0 ${
                 gameMode === 'A2A'
-                  ? 'text-[#00F0FF] font-bold border-b-2 border-[#00F0FF] drop-shadow-[0_0_8px_rgba(0,240,255,0.85)]'
+                  ? 'text-[#00F0FF] font-bold border-b-2 border-[#00F0FF]'
                   : 'text-[#94A3B8] hover:text-white'
               }`}
             >
@@ -1235,252 +1300,220 @@ export default function App() {
             </button>
             <button
               onClick={() => setShowContenderStrip((v) => !v)}
-              className={`min-h-[34px] px-2 cursor-pointer transition-all ${
+              className={`min-h-[30px] px-2 cursor-pointer transition-all whitespace-nowrap shrink-0 ${
                 showContenderStrip
                   ? 'text-[#D4AF37] font-bold border-b-2 border-[#D4AF37]'
                   : 'text-[#E2E8F0] hover:text-[#FFF3B0]'
               }`}
             >
-              10 Contenders
+              Titans
             </button>
             <button
               onClick={() => setIsCodexOpen(true)}
-              className="min-h-[34px] px-1.5 text-[#94A3B8] hover:text-[#FFF3B0] cursor-pointer"
+              className="min-h-[30px] px-1 text-[#94A3B8] hover:text-[#FFF3B0] cursor-pointer whitespace-nowrap shrink-0"
             >
               Roster
             </button>
             <button
               onClick={() => setIsPhysicsModalOpen(true)}
-              className="min-h-[34px] px-1.5 text-[#94A3B8] hover:text-[#00F0FF] cursor-pointer"
+              className="min-h-[30px] px-1 text-[#94A3B8] hover:text-[#00F0FF] cursor-pointer whitespace-nowrap shrink-0"
             >
               KO Spec
             </button>
             <button
               onClick={handleCycleCamera}
-              className="min-h-[34px] px-1.5 text-[#94A3B8] hover:text-[#D4AF37] cursor-pointer"
+              className="min-h-[30px] px-1 text-[#94A3B8] hover:text-[#D4AF37] cursor-pointer whitespace-nowrap shrink-0"
             >
               Cam
             </button>
             <button
               onClick={handleToggleMute}
-              className="min-h-[34px] px-1.5 text-[#94A3B8] hover:text-white cursor-pointer"
+              className="min-h-[30px] px-1 text-[#94A3B8] hover:text-white cursor-pointer whitespace-nowrap shrink-0"
             >
               {isMuted ? 'Muted' : 'Audio'}
             </button>
           </nav>
         </div>
 
-        {/* 2. FROSTED GLASS-MORPH STATS BAR (Directly Under Banner, Above Fighters) */}
-        <div className="w-full bg-gradient-to-r from-[#070C18]/75 via-[#0E172A]/70 to-[#070C18]/75 border-b border-[#00F0FF]/30 shadow-[0_8px_32px_rgba(0,240,255,0.12)] px-3 sm:px-6 py-2 pointer-events-auto">
-          <div className="max-w-[1600px] mx-auto grid grid-cols-12 items-center gap-2">
-            {/* LEFT FIGHTER: Circular Chin-Durability Portrait Medallion + Floating Glass-Morph Stats */}
-            <div className="col-span-5 flex items-center gap-2.5 min-w-0">
-              <button
-                onClick={() => setShowContenderStrip((v) => !v)}
-                className="relative w-12 h-12 sm:w-14 sm:h-14 shrink-0 flex items-center justify-center cursor-pointer"
-                title="Tap to switch contender"
-              >
-                <svg
-                  className="absolute inset-0 w-full h-full -rotate-90"
-                  viewBox="0 0 56 56"
-                >
+        {/* Compact Scoreboard Strip */}
+        <div className="w-full bg-[#070C18]/92 border-b border-[#00F0FF]/25 shadow-md px-3 sm:px-6 py-1.5">
+          <div className="max-w-[1500px] mx-auto grid grid-cols-12 items-center gap-2">
+            {/* Left Fighter */}
+            <div className="col-span-5 flex items-center gap-2 min-w-0">
+              <div className="relative w-10 h-10 sm:w-11 sm:h-11 shrink-0 flex items-center justify-center">
+                <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 56 56">
+                  <circle cx="28" cy="28" r="25" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="3.5" />
                   <circle
                     cx="28"
                     cy="28"
                     r="25"
                     fill="none"
-                    stroke="rgba(255,255,255,0.15)"
-                    strokeWidth="3.5"
-                  />
-                  <circle
-                    cx="28"
-                    cy="28"
-                    r="25"
-                    fill="none"
-                    stroke={
-                      leftHP > 55
-                        ? '#00F0FF'
-                        : leftHP > 28
-                          ? '#F59E0B'
-                          : '#EF4444'
-                    }
+                    stroke={leftHP > 55 ? '#00F0FF' : leftHP > 28 ? '#F59E0B' : '#EF4444'}
                     strokeWidth="3.5"
                     strokeDasharray={`${(leftHP / 100) * 157} 157`}
                     strokeLinecap="round"
                   />
                 </svg>
-                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden bg-[#0F172A]">
-                  <img
-                    src={leftFighter.imageUrl}
-                    alt={leftFighter.name}
-                    className="w-full h-[125%] object-cover object-top"
-                  />
-                </div>
-              </button>
-
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-2">
-                  <span className="font-display text-sm sm:text-lg font-extrabold uppercase tracking-wide text-[#00F0FF] drop-shadow-[0_0_8px_rgba(0,240,255,0.45)] truncate">
-                    {leftFighter.name}
-                  </span>
-                  <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-widest text-[#94A3B8]">
-                    {leftFighter.company}
-                  </span>
-                  {strikerSide === 'LEFT' && (
-                    <span className="font-mono text-[10px] uppercase text-[#FFF3B0] font-bold">
-                      • STRIKING
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden bg-[#0F172A] flex items-center justify-center">
+                  {!failedPortraits[leftFighter.id] ? (
+                    <img
+                      src={leftFighter.imageUrl}
+                      alt={leftFighter.name}
+                      referrerPolicy="no-referrer"
+                      onError={() =>
+                        setFailedPortraits((prev) => ({
+                          ...prev,
+                          [leftFighter.id]: true,
+                        }))
+                      }
+                      className="w-full h-full object-cover object-top"
+                    />
+                  ) : (
+                    <span className="font-display font-bold text-[10px] text-[#00F0FF]">
+                      {leftFighter.company.slice(0, 3).toUpperCase()}
                     </span>
                   )}
                 </div>
-                <p className="font-mono text-[10px] sm:text-[11px] text-[#E2E8F0] leading-snug truncate sm:whitespace-normal">
-                  Power <strong className="text-white">{leftEffectiveStats.power}</strong> • Precision{' '}
-                  <strong className="text-white">{leftEffectiveStats.precision}</strong> • Wind-Up{' '}
-                  <strong className="text-white">{leftEffectiveStats.windUpSpeed}</strong> • Chin{' '}
-                  <strong className="text-[#00F0FF]">{leftHP}%</strong> • KO Res{' '}
-                  <strong className="text-white">{leftEffectiveStats.koResistance}</strong> •{' '}
-                  <span className="text-[#00F0FF]">{leftFighter.specialName}</span>
+              </div>
+              <div className="min-w-0 flex-1 leading-tight">
+                <div className="flex items-baseline gap-1.5 truncate">
+                  <span className="font-display text-xs sm:text-base font-extrabold uppercase text-[#00F0FF] truncate">
+                    {leftFighter.name}
+                  </span>
+                  <span className="hidden sm:inline font-mono text-[9px] text-slate-400 shrink-0">
+                    · {leftFighter.company}
+                  </span>
+                  {strikerSide === 'LEFT' && (
+                    <span className="font-mono text-[9px] uppercase text-[#FFF3B0] font-bold shrink-0">
+                      · SLAPPING
+                    </span>
+                  )}
+                </div>
+                <p className="font-mono text-[9px] sm:text-[10px] text-[#CBD5E1] tabular-nums truncate">
+                  Chin <strong className="text-[#00F0FF]">{leftHP}%</strong> · Pwr {leftEffectiveStats.power} · KO Res {leftEffectiveStats.koResistance}
                 </p>
               </div>
             </div>
 
-            {/* CENTER: Round Indicator • Slap-Force Meter • Crowd Hype Meter */}
+            {/* Center Match Status */}
             <div className="col-span-2 flex flex-col items-center justify-center text-center">
-              <div className="font-display text-xs sm:text-base font-extrabold uppercase tracking-widest text-[#FFF3B0]">
-                Round {round}/{maxRounds} ({leftRoundsWon}–{rightRoundsWon})
+              <div className="font-display text-[11px] sm:text-sm font-extrabold uppercase tracking-widest text-[#FFF3B0] tabular-nums">
+                R{round} ({leftRoundsWon}–{rightRoundsWon})
               </div>
-              <div className="font-mono text-[9px] sm:text-[11px] text-[#00F0FF] tabular-nums">
-                Force {globalSlapForceValue} N • Hype {crowdHypePercent}%
+              <div className="font-mono text-[8px] sm:text-[10px] text-[#00F0FF] tabular-nums">
+                {globalSlapForceValue} N · {crowdHypePercent}% Hype
               </div>
             </div>
 
-            {/* RIGHT FIGHTER: Floating Glass-Morph Stats + Circular Chin-Durability Portrait Medallion */}
-            <div className="col-span-5 flex items-center justify-end gap-2.5 min-w-0">
-              <div className="min-w-0 flex-1 text-right">
-                <div className="flex items-baseline justify-end gap-2">
+            {/* Right Fighter */}
+            <div className="col-span-5 flex items-center justify-end gap-2 min-w-0">
+              <div className="min-w-0 flex-1 text-right leading-tight">
+                <div className="flex items-baseline justify-end gap-1.5 truncate">
                   {strikerSide === 'RIGHT' && (
-                    <span className="font-mono text-[10px] uppercase text-[#FFF3B0] font-bold">
-                      STRIKING •
+                    <span className="font-mono text-[9px] uppercase text-[#FFF3B0] font-bold shrink-0">
+                      SLAPPING ·
                     </span>
                   )}
-                  <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-widest text-[#94A3B8]">
-                    {rightFighter.company}
+                  <span className="hidden sm:inline font-mono text-[9px] text-slate-400 shrink-0">
+                    {rightFighter.company} ·
                   </span>
-                  <span className="font-display text-sm sm:text-lg font-extrabold uppercase tracking-wide text-[#D4AF37] drop-shadow-[0_0_8px_rgba(212,175,55,0.45)] truncate">
+                  <span className="font-display text-xs sm:text-base font-extrabold uppercase text-[#D4AF37] truncate">
                     {rightFighter.name}
                   </span>
                 </div>
-                <p className="font-mono text-[10px] sm:text-[11px] text-[#E2E8F0] leading-snug truncate sm:whitespace-normal">
-                  Power <strong className="text-white">{rightEffectiveStats.power}</strong> • Precision{' '}
-                  <strong className="text-white">{rightEffectiveStats.precision}</strong> • Wind-Up{' '}
-                  <strong className="text-white">{rightEffectiveStats.windUpSpeed}</strong> • Chin{' '}
-                  <strong className="text-[#D4AF37]">{rightHP}%</strong> • KO Res{' '}
-                  <strong className="text-white">{rightEffectiveStats.koResistance}</strong> •{' '}
-                  <span className="text-[#D4AF37]">{rightFighter.specialName}</span>
+                <p className="font-mono text-[9px] sm:text-[10px] text-[#CBD5E1] tabular-nums truncate">
+                  Chin <strong className="text-[#D4AF37]">{rightHP}%</strong> · Pwr {rightEffectiveStats.power} · KO Res {rightEffectiveStats.koResistance}
                 </p>
               </div>
-
-              <button
-                onClick={() => setShowContenderStrip((v) => !v)}
-                className="relative w-12 h-12 sm:w-14 sm:h-14 shrink-0 flex items-center justify-center cursor-pointer"
-                title="Tap to switch opponent"
-              >
-                <svg
-                  className="absolute inset-0 w-full h-full -rotate-90"
-                  viewBox="0 0 56 56"
-                >
+              <div className="relative w-10 h-10 sm:w-11 sm:h-11 shrink-0 flex items-center justify-center">
+                <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 56 56">
+                  <circle cx="28" cy="28" r="25" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="3.5" />
                   <circle
                     cx="28"
                     cy="28"
                     r="25"
                     fill="none"
-                    stroke="rgba(255,255,255,0.15)"
-                    strokeWidth="3.5"
-                  />
-                  <circle
-                    cx="28"
-                    cy="28"
-                    r="25"
-                    fill="none"
-                    stroke={
-                      rightHP > 55
-                        ? '#D4AF37'
-                        : rightHP > 28
-                          ? '#F59E0B'
-                          : '#EF4444'
-                    }
+                    stroke={rightHP > 55 ? '#D4AF37' : rightHP > 28 ? '#F59E0B' : '#EF4444'}
                     strokeWidth="3.5"
                     strokeDasharray={`${(rightHP / 100) * 157} 157`}
                     strokeLinecap="round"
                   />
                 </svg>
-                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden bg-[#0F172A]">
-                  <img
-                    src={rightFighter.imageUrl}
-                    alt={rightFighter.name}
-                    className="w-full h-[125%] object-cover object-top"
-                  />
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden bg-[#0F172A] flex items-center justify-center">
+                  {!failedPortraits[rightFighter.id] ? (
+                    <img
+                      src={rightFighter.imageUrl}
+                      alt={rightFighter.name}
+                      referrerPolicy="no-referrer"
+                      onError={() =>
+                        setFailedPortraits((prev) => ({
+                          ...prev,
+                          [rightFighter.id]: true,
+                        }))
+                      }
+                      className="w-full h-full object-cover object-top"
+                    />
+                  ) : (
+                    <span className="font-display font-bold text-[10px] text-[#D4AF37]">
+                      {rightFighter.company.slice(0, 3).toUpperCase()}
+                    </span>
+                  )}
                 </div>
-              </button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Collapsible 10 Uploaded Contenders Strip */}
+        {/* Collapsible 10 Titans Quick Select Strip */}
         {showContenderStrip && (
-          <div className="w-full bg-[#070B14]/88 border-b border-[#D4AF37]/40 px-4 py-2 pointer-events-auto flex items-center gap-3 overflow-x-auto">
+          <div className="w-full bg-[#070B14]/95 border-b border-[#D4AF37]/40 px-3 py-1.5 flex items-center gap-3 overflow-x-auto">
             {FIGHTERS.map((f) => {
-              const isLeft =
-                (gameMode === 'STORY' && playerFighterId === f.id) ||
-                (gameMode === 'A2A' && a2aLeftId === f.id);
-              const isRight =
-                (gameMode === 'STORY' && storyChapter === f.storyChapter) ||
-                (gameMode === 'A2A' && a2aRightId === f.id);
+              const isLeft = (gameMode === 'STORY' && playerFighterId === f.id) || (gameMode === 'A2A' && a2aLeftId === f.id);
+              const isRight = (gameMode === 'STORY' && storyChapter === f.storyChapter) || (gameMode === 'A2A' && a2aRightId === f.id);
               return (
-                <div
-                  key={f.id}
-                  className="shrink-0 flex items-center gap-2 pr-3 border-r border-white/10"
-                >
-                  <img
-                    src={f.imageUrl}
-                    alt={f.name}
-                    className="w-9 h-9 rounded-full object-cover object-top border border-[#D4AF37]/50"
-                  />
-                  <div className="flex flex-col">
-                    <span className="font-display text-xs font-bold uppercase text-white">
-                      {f.name}
-                    </span>
-                    <div className="flex items-center gap-2 text-[10px] font-mono">
+                <div key={f.id} className="shrink-0 flex items-center gap-1.5 pr-2 border-r border-white/10">
+                  <div className="w-7 h-7 rounded-full overflow-hidden bg-slate-900 border border-[#D4AF37]/50 flex items-center justify-center shrink-0">
+                    {!failedPortraits[f.id] ? (
+                      <img
+                        src={f.imageUrl}
+                        alt={f.name}
+                        referrerPolicy="no-referrer"
+                        onError={() =>
+                          setFailedPortraits((prev) => ({
+                            ...prev,
+                            [f.id]: true,
+                          }))
+                        }
+                        className="w-full h-full object-cover object-top"
+                      />
+                    ) : (
+                      <span className="font-display text-[8px] font-bold text-amber-400">
+                        {f.company.slice(0, 2).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-col text-[9px] font-mono">
+                    <span className="font-display text-[10px] font-bold uppercase text-white truncate max-w-[70px]">{f.name}</span>
+                    <div className="flex gap-1.5">
                       <button
                         onClick={() => {
                           if (gameMode === 'STORY') setPlayerFighterId(f.id);
                           else setA2aLeftId(f.id);
                           setTimeout(() => resetMatch(), 20);
                         }}
-                        className={`cursor-pointer ${
-                          isLeft
-                            ? 'text-[#00F0FF] font-bold underline'
-                            : 'text-[#94A3B8] hover:text-white'
-                        }`}
+                        className={`cursor-pointer ${isLeft ? 'text-[#00F0FF] font-bold' : 'text-[#94A3B8] hover:text-white'}`}
                       >
-                        Set P1
+                        P1
                       </button>
                       <button
                         onClick={() => {
-                          if (gameMode === 'STORY')
-                            setStoryChapter(f.storyChapter);
+                          if (gameMode === 'STORY') setStoryChapter(f.storyChapter);
                           else setA2aRightId(f.id);
-                          setTimeout(
-                            () => resetMatch(gameMode, f.storyChapter),
-                            20
-                          );
+                          setTimeout(() => resetMatch(gameMode, f.storyChapter), 20);
                         }}
-                        className={`cursor-pointer ${
-                          isRight
-                            ? 'text-[#D4AF37] font-bold underline'
-                            : 'text-[#94A3B8] hover:text-white'
-                        }`}
+                        className={`cursor-pointer ${isRight ? 'text-[#D4AF37] font-bold' : 'text-[#94A3B8] hover:text-white'}`}
                       >
-                        Set Opponent
+                        P2
                       </button>
                     </div>
                   </div>
@@ -1492,312 +1525,319 @@ export default function App() {
       </header>
 
       {/* ===================================================================== */}
-      {/* BOTTOM GLASS-MORPH HUD: Slap-Force Meters, Chin Rings & Tap Controls  */}
+      {/* 2. MIDDLE 3D ARENA CANVAS (Strictly flex-1, ~58% height, zero overlap) */}
       {/* ===================================================================== */}
-      <footer
-        className={`absolute bottom-0 inset-x-0 z-10 pointer-events-none transition-opacity duration-500 ${
-          isKOReplayActive ? 'opacity-50' : 'opacity-100'
-        }`}
-      >
-        <div className="w-full bg-gradient-to-r from-[#060A14]/80 via-[#0E172A]/78 to-[#060A14]/80 border-t border-[#D4AF37]/45 shadow-[0_-8px_32px_rgba(0,0,0,0.7)] px-3 sm:px-6 py-2.5 pointer-events-auto">
-          <div className="max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 items-center gap-3">
-            {/* LEFT BOTTOM: Fighter 1 Slap-Force Meter • Chin Durability */}
-            <div className="hidden lg:flex lg:col-span-3 items-center gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="font-mono text-[11px] text-[#E2E8F0] truncate">
-                  <span className="text-[#00F0FF] font-bold">
-                    {leftFighter.name}
-                  </span>{' '}
-                  • Slap-Force • Chin {leftHP}%
-                </div>
-                <div className="w-full h-2 bg-white/10 overflow-hidden mt-1">
-                  <div
-                    className="h-full bg-gradient-to-r from-[#00F0FF] via-[#FACC15] to-[#EF4444] transition-all duration-200"
-                    style={{
-                      width: `${
-                        strikerSide === 'LEFT'
-                          ? Math.max(28, Math.min(100, 35 + torqueCharge * 65))
-                          : 24
-                      }%`,
-                    }}
-                  />
-                </div>
-              </div>
+      <main className="flex-1 relative w-full min-h-0 overflow-hidden z-10">
+        {/* Full canvas container */}
+        <div
+          ref={canvasContainerRef}
+          className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing"
+          title="Drag horizontally or vertically to inspect the 3D volumetric Tech Titans"
+        />
+
+        {/* Dedicated Top-of-Canvas Toast Callout Strip (No backdrop-blur over WebGL, never overlaps faces) */}
+        {impactPopupText && (
+          <div className="absolute top-2 inset-x-0 z-30 flex justify-center pointer-events-none px-4">
+            <div className="font-display text-[clamp(0.95rem,3.2vw,1.35rem)] font-extrabold uppercase tracking-wide bg-gradient-to-r from-[#FFF3B0] via-[#F59E0B] to-[#EF4444] bg-clip-text text-transparent drop-shadow-[0_2px_12px_rgba(245,158,11,0.85)] text-center px-3.5 py-1 bg-[#050811]/95 rounded-lg border border-[#D4AF37]/45">
+              {impactPopupText}
+            </div>
+          </div>
+        )}
+
+        {/* Collapsible Cinema / Zen Mode Toggle Button pinned to bottom-center edge of 3D stage */}
+        <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
+          <button
+            onClick={() => setIsDockCollapsed((prev) => !prev)}
+            className="px-3 py-0.5 text-[10px] font-mono uppercase tracking-wider text-slate-300 hover:text-amber-300 bg-[#050811]/90 border border-slate-700/80 rounded-md transition-colors cursor-pointer whitespace-nowrap"
+          >
+            {isDockCollapsed ? '▴ Show Controls (H)' : '▾ Hide Controls (H)'}
+          </button>
+        </div>
+      </main>
+
+      {/* ===================================================================== */}
+      {/* 3. BOTTOM CONTROL DECK (Strictly flex-none, collapsible Zen drawer)   */}
+      {/* ===================================================================== */}
+      {!isDockCollapsed && (
+        <footer className="flex-none max-h-[28vh] w-full z-20 bg-gradient-to-r from-[#060A14]/95 via-[#0E172A]/92 to-[#060A14]/95 border-t border-[#D4AF37]/45 shadow-[0_-8px_32px_rgba(0,0,0,0.7)] px-3 sm:px-6 py-2 pointer-events-auto">
+          <div className="max-w-[1500px] mx-auto flex flex-col items-center gap-1.5">
+            {/* Status Sub-Header & Shockwave / Timer Status */}
+            <div className="flex flex-wrap items-center justify-center gap-2 font-mono text-[10px] sm:text-[11px] tracking-wide">
+              <span
+                className={
+                  koProximityDanger
+                    ? 'text-[#EF4444] font-bold drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]'
+                    : 'text-[#FFF3B0]'
+                }
+              >
+                KO Shockwave: {koProximityDanger ? 'CRITICAL THRESHOLD' : 'ARMED'}
+              </span>
+              <span className="text-white/25">·</span>
+              <span className="text-[#00F0FF] tabular-nums">Timer {formattedTimer}</span>
+              <span className="text-white/25">·</span>
+              <span className="text-[#CBD5E1] truncate max-w-sm sm:max-w-md">{statusBanner}</span>
             </div>
 
-            {/* CENTER BOTTOM: KO Shockwave Indicator • Round Timer • Tap Controls */}
-            <div className="lg:col-span-6 flex flex-col items-center text-center gap-2">
-              <div className="flex flex-wrap items-center justify-center gap-2 font-mono text-[11px] tracking-wide">
-                <span
-                  className={
-                    koProximityDanger
-                      ? 'text-[#EF4444] font-bold drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]'
-                      : 'text-[#FFF3B0]'
-                  }
+            {/* 1P STORY: Phase 1 Cheek Alignment Tap Controls */}
+            {gameMode === 'STORY' && turnPhase === 'PLAYER_STRIKE_PREP' && (
+              <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2.5">
+                {(
+                  [
+                    { id: 'MID_CHEEK', label: 'Mid Cheek' },
+                    { id: 'JAWLINE_LEVER', label: 'Jawline' },
+                    { id: 'HIGH_TEMPLE', label: 'High Temple' },
+                  ] as { id: SlapAngle; label: string }[]
+                ).map((ang) => (
+                  <button
+                    key={ang.id}
+                    onClick={() => handleSelectCheekAngle(ang.id)}
+                    className={`min-h-[34px] px-2.5 font-mono text-[11px] uppercase tracking-wider border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                      selectedAngle === ang.id
+                        ? 'border-[#00F0FF] text-[#00F0FF] font-bold bg-[#00F0FF]/10'
+                        : 'border-transparent text-[#94A3B8] hover:text-white'
+                    }`}
+                  >
+                    {ang.label}
+                  </button>
+                ))}
+
+                <span className="text-white/20">|</span>
+
+                {([1, 2, 3] as WindUpCount[]).map((cnt) => (
+                  <button
+                    key={cnt}
+                    onClick={() => handleSelectWindUp(cnt)}
+                    className={`min-h-[34px] px-2.5 font-mono text-[11px] uppercase tracking-wider border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                      selectedWindUp === cnt
+                        ? 'border-[#D4AF37] text-[#FFF3B0] font-bold bg-[#D4AF37]/15'
+                        : 'border-transparent text-[#94A3B8] hover:text-white'
+                    }`}
+                  >
+                    On {cnt}
+                  </button>
+                ))}
+
+                {leftSpecialReady && (
+                  <button
+                    onClick={() => {
+                      const next = !leftSpecialActive;
+                      setLeftSpecialActive(next);
+                      sceneControllerRef.current?.setSpecialAura('LEFT', next);
+                    }}
+                    className={`min-h-[34px] px-2.5 font-mono text-[11px] uppercase border-b-2 cursor-pointer whitespace-nowrap shrink-0 ${
+                      leftSpecialActive
+                        ? 'border-[#00E676] text-[#00E676] font-bold bg-[#00E676]/15'
+                        : 'border-transparent text-[#94A3B8] hover:text-white'
+                    }`}
+                  >
+                    Special
+                  </button>
+                )}
+
+                {/* Dedicated TAUNT Button */}
+                <button
+                  onClick={handleTriggerTaunt}
+                  className="min-h-[34px] px-3 border border-[#F59E0B] text-[#F59E0B] hover:text-white font-mono text-[11px] uppercase font-bold cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
                 >
-                  KO Shockwave:{' '}
-                  {koProximityDanger ? 'CRITICAL THRESHOLD' : 'ARMED'}
-                </span>
-                <span className="text-white/25">•</span>
-                <span className="text-[#00F0FF] tabular-nums">
-                  Timer {formattedTimer}
-                </span>
-                <span className="text-white/25">•</span>
-                <span className="text-[#E2E8F0] truncate max-w-md">
-                  {statusBanner}
-                </span>
+                  TAUNT
+                </button>
+
+                <button
+                  onClick={handleLockCheekLineUp}
+                  className="min-h-[36px] px-4 bg-gradient-to-r from-[#D4AF37]/35 via-[#FFF3B0]/40 to-[#D4AF37]/35 border border-[#D4AF37] font-display text-xs sm:text-sm font-extrabold uppercase tracking-wider text-[#FFF3B0] hover:text-white shadow-[0_0_16px_rgba(212,175,55,0.4)] cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
+                >
+                  LOCK ALIGNMENT
+                </button>
               </div>
+            )}
 
-              {/* 1P STORY MODE: Phase 1 Cheek Alignment Tap Controls */}
-              {gameMode === 'STORY' && turnPhase === 'PLAYER_STRIKE_PREP' && (
-                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-                  {(
-                    [
-                      { id: 'MID_CHEEK', label: 'Mid Cheek' },
-                      { id: 'JAWLINE_LEVER', label: 'Jawline' },
-                      { id: 'HIGH_TEMPLE', label: 'High Temple' },
-                    ] as { id: SlapAngle; label: string }[]
-                  ).map((ang) => (
-                    <button
-                      key={ang.id}
-                      onClick={() => handleSelectCheekAngle(ang.id)}
-                      className={`min-h-[40px] px-3 font-mono text-xs uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
-                        selectedAngle === ang.id
-                          ? 'border-[#00F0FF] text-[#00F0FF] font-bold bg-[#00F0FF]/10'
-                          : 'border-transparent text-[#94A3B8] hover:text-white'
-                      }`}
-                    >
-                      {ang.label}
-                    </button>
-                  ))}
+            {/* 1P STORY: Phase 2-5 Flinch-Bait Torque, Fakeout Bluff & Unleash Slap */}
+            {gameMode === 'STORY' && turnPhase === 'PLAYER_STRIKE_METER' && (
+              <div className="w-full max-w-xl flex flex-col items-center gap-1.5">
+                <div className="relative w-full h-2.5 bg-white/10 overflow-hidden">
+                  <div
+                    className="absolute inset-y-0 bg-gradient-to-r from-[#00F0FF]/45 via-[#FACC15]/75 to-[#EF4444]/45"
+                    style={{ left: '34%', width: '32%' }}
+                  />
+                  <div
+                    className="absolute inset-y-0 w-2 bg-white shadow-[0_0_10px_#FFFFFF]"
+                    style={{ left: `calc(${timingCursor * 100}% - 4px)` }}
+                  />
+                </div>
 
-                  <span className="text-white/20">|</span>
-
-                  {([1, 2, 3] as WindUpCount[]).map((cnt) => (
-                    <button
-                      key={cnt}
-                      onClick={() => handleSelectWindUp(cnt)}
-                      className={`min-h-[40px] px-3 font-mono text-xs uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
-                        selectedWindUp === cnt
-                          ? 'border-[#D4AF37] text-[#FFF3B0] font-bold bg-[#D4AF37]/15'
-                          : 'border-transparent text-[#94A3B8] hover:text-white'
-                      }`}
-                    >
-                      On {cnt}
-                    </button>
-                  ))}
-
-                  {leftSpecialReady && (
-                    <button
-                      onClick={() => {
-                        const next = !leftSpecialActive;
-                        setLeftSpecialActive(next);
-                        sceneControllerRef.current?.setSpecialAura(
-                          'LEFT',
-                          next
-                        );
-                      }}
-                      className={`min-h-[40px] px-3 font-mono text-xs uppercase border-b-2 cursor-pointer ${
-                        leftSpecialActive
-                          ? 'border-[#00E676] text-[#00E676] font-bold bg-[#00E676]/15'
-                          : 'border-transparent text-[#94A3B8] hover:text-white'
-                      }`}
-                    >
-                      Special
-                    </button>
-                  )}
+                <div className="flex flex-wrap items-center justify-center gap-2 w-full">
+                  <button
+                    onClick={handleTapPracticeSwing}
+                    className="min-h-[38px] px-3 bg-[#00F0FF]/15 border border-[#00F0FF] font-display text-xs sm:text-sm font-extrabold uppercase text-[#00F0FF] hover:text-white cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
+                  >
+                    TORQUE SWING (+{Math.round(torqueCharge * 25)}%)
+                  </button>
 
                   <button
-                    onClick={handleLockCheekLineUp}
-                    className="min-h-[44px] px-5 bg-gradient-to-r from-[#D4AF37]/30 via-[#FFF3B0]/35 to-[#D4AF37]/30 border border-[#D4AF37] font-display text-sm sm:text-base font-extrabold uppercase tracking-wider text-[#FFF3B0] hover:text-white shadow-[0_0_20px_rgba(212,175,55,0.4)] cursor-pointer active:scale-95"
+                    onClick={handlePlayerTriggerFakeout}
+                    className="min-h-[38px] px-3 bg-[#F59E0B]/20 border border-[#F59E0B] font-display text-xs sm:text-sm font-extrabold uppercase text-[#F59E0B] hover:text-white cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
                   >
-                    TAP TO LOCK CHEEK ALIGNMENT
+                    TRIGGER FAKEOUT
+                  </button>
+
+                  <button
+                    onClick={handleTriggerTaunt}
+                    className="min-h-[38px] px-3 border border-[#E2E8F0]/40 text-[#E2E8F0] hover:text-white font-mono text-[11px] uppercase font-bold cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
+                  >
+                    TAUNT
+                  </button>
+
+                  <button
+                    onClick={handlePlayerUnleashSlap}
+                    className="flex-1 min-h-[38px] px-4 bg-gradient-to-r from-[#D4AF37]/45 via-[#EF4444]/45 to-[#D4AF37]/45 border border-[#FFF3B0] font-display text-xs sm:text-base font-extrabold uppercase tracking-wider text-[#FFF3B0] hover:text-white shadow-[0_0_20px_rgba(245,158,11,0.55)] cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
+                  >
+                    UNLEASH SLAP!
                   </button>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* 1P STORY MODE: Phase 2-5 Flinch-Bait Torque Tap & Slap Execution Tap */}
-              {gameMode === 'STORY' && turnPhase === 'PLAYER_STRIKE_METER' && (
-                <div className="w-full max-w-xl flex flex-col items-center gap-2">
-                  <div className="relative w-full h-3 bg-white/10 overflow-hidden">
-                    <div
-                      className="absolute inset-y-0 bg-gradient-to-r from-[#00F0FF]/45 via-[#FACC15]/75 to-[#EF4444]/45"
-                      style={{ left: '34%', width: '32%' }}
-                    />
-                    <div
-                      className="absolute inset-y-0 w-2 bg-white shadow-[0_0_12px_#FFFFFF]"
-                      style={{ left: `calc(${timingCursor * 100}% - 4px)` }}
-                    />
-                  </div>
-                  <div className="flex flex-wrap items-center justify-center gap-3 w-full">
-                    <button
-                      onClick={handleTapPracticeSwing}
-                      className="flex-1 min-h-[46px] px-4 bg-[#00F0FF]/15 border border-[#00F0FF] font-display text-sm sm:text-base font-extrabold uppercase tracking-wider text-[#00F0FF] hover:text-white shadow-[0_0_18px_rgba(0,240,255,0.35)] cursor-pointer active:scale-95"
-                    >
-                      TAP! FLINCH-BAIT &amp; TORQUE (+
-                      {Math.round(torqueCharge * 25)}%)
-                    </button>
-                    <button
-                      onClick={handlePlayerUnleashSlap}
-                      className="flex-1 min-h-[46px] px-5 bg-gradient-to-r from-[#D4AF37]/40 via-[#EF4444]/45 to-[#D4AF37]/40 border border-[#FFF3B0] font-display text-base sm:text-lg font-extrabold uppercase tracking-wider text-[#FFF3B0] hover:text-white shadow-[0_0_24px_rgba(245,158,11,0.55)] cursor-pointer active:scale-95"
-                    >
-                      TAP TO UNLEASH SLAP!
-                    </button>
-                  </div>
+            {/* 1P STORY: Defensive Chin Brace */}
+            {gameMode === 'STORY' && turnPhase === 'PLAYER_DEFENSE_BRACE' && (
+              <div className="w-full max-w-xl flex flex-col items-center gap-1.5">
+                <div className="relative w-full h-2.5 bg-white/10 overflow-hidden">
+                  <div
+                    className="absolute inset-y-0 bg-[#00F0FF]/55"
+                    style={{ left: '38%', width: '24%' }}
+                  />
+                  <div
+                    className="absolute inset-y-0 w-2 bg-white shadow-[0_0_10px_#FFFFFF]"
+                    style={{ left: `calc(${timingCursor * 100}% - 4px)` }}
+                  />
                 </div>
-              )}
-
-              {/* 1P STORY MODE: Defensive Chin Brace Tap */}
-              {gameMode === 'STORY' && turnPhase === 'PLAYER_DEFENSE_BRACE' && (
-                <div className="w-full max-w-xl flex flex-col items-center gap-2">
-                  <div className="relative w-full h-3 bg-white/10 overflow-hidden">
-                    <div
-                      className="absolute inset-y-0 bg-[#00F0FF]/55"
-                      style={{ left: '38%', width: '24%' }}
-                    />
-                    <div
-                      className="absolute inset-y-0 w-2 bg-white shadow-[0_0_12px_#FFFFFF]"
-                      style={{ left: `calc(${timingCursor * 100}% - 4px)` }}
-                    />
-                  </div>
+                <div className="flex gap-2 w-full">
                   <button
                     onClick={handleTapChinBrace}
-                    className="w-full min-h-[46px] px-6 bg-[#00F0FF]/20 border border-[#00F0FF] font-display text-base sm:text-lg font-extrabold uppercase tracking-wider text-[#00F0FF] hover:text-white shadow-[0_0_20px_rgba(0,240,255,0.45)] cursor-pointer active:scale-95"
+                    className="flex-1 min-h-[38px] px-4 bg-[#00F0FF]/20 border border-[#00F0FF] font-display text-xs sm:text-base font-extrabold uppercase tracking-wider text-[#00F0FF] hover:text-white shadow-[0_0_16px_rgba(0,240,255,0.4)] cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
                   >
                     TAP TO BRACE CHIN &amp; ABSORB IMPACT!
                   </button>
-                </div>
-              )}
-
-              {/* 10-COUNT KO RECOVERY TIMING MINI-GAME */}
-              {turnPhase === 'KO_RECOVERY_MINIGAME' && (
-                <div className="w-full max-w-xl flex flex-col items-center gap-2">
-                  <div className="font-mono text-xs uppercase tracking-wider text-[#EF4444] font-bold">
-                    {activeKODef.name} • 10-Count Recovery:{' '}
-                    {(10 - tenCountSeconds).toFixed(1)}s / 10.0s
-                  </div>
-                  <div className="relative w-full h-3 bg-white/10 overflow-hidden">
-                    <div
-                      className="absolute inset-y-0 bg-[#00E676]/70"
-                      style={{
-                        left: `${(0.5 - activeKODef.recoveryWindowWidth * 0.5) * 100}%`,
-                        width: `${activeKODef.recoveryWindowWidth * 100}%`,
-                      }}
-                    />
-                    <div
-                      className="absolute inset-y-0 w-2 bg-white shadow-[0_0_12px_#FFFFFF]"
-                      style={{ left: `calc(${timingCursor * 100}% - 4px)` }}
-                    />
-                  </div>
-                  {gameMode === 'STORY' && downedSide === 'LEFT' ? (
-                    <button
-                      onClick={handlePlayerAttemptKORecovery}
-                      className="w-full min-h-[46px] px-6 bg-[#00E676]/25 border border-[#00E676] font-display text-base sm:text-lg font-extrabold uppercase tracking-wider text-[#00E676] hover:text-white shadow-[0_0_20px_rgba(0,230,118,0.5)] cursor-pointer active:scale-95"
-                    >
-                      TAP GREEN ZONE TO BEAT THE 10-COUNT!
-                    </button>
-                  ) : (
-                    <span className="font-mono text-xs text-[#00F0FF]">
-                      Autonomous neural recovery check in progress...
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* A2A AUTONOMOUS MODE CONTROLS */}
-              {gameMode === 'A2A' && turnPhase !== 'KO_RECOVERY_MINIGAME' && (
-                <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-mono">
                   <button
-                    onClick={() => setA2aPaused(!a2aPaused)}
-                    className="min-h-[38px] px-3 border border-[#D4AF37]/60 text-[#FFF3B0] hover:text-white font-bold uppercase cursor-pointer"
+                    onClick={handleTriggerTaunt}
+                    className="min-h-[38px] px-3 border border-[#F59E0B] text-[#F59E0B] hover:text-white font-mono text-[11px] uppercase font-bold cursor-pointer whitespace-nowrap shrink-0"
                   >
-                    {a2aPaused ? 'Resume Simulation' : 'Pause Simulation'}
+                    TAUNT
                   </button>
-                  {[1, 2].map((spd) => (
-                    <button
-                      key={spd}
-                      onClick={() => setA2aSpeed(spd)}
-                      className={`min-h-[38px] px-3 cursor-pointer ${
-                        a2aSpeed === spd
-                          ? 'text-[#00F0FF] font-bold border-b-2 border-[#00F0FF]'
-                          : 'text-[#94A3B8] hover:text-white'
-                      }`}
-                    >
-                      {spd}x Speed
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => resetMatch()}
-                    className="min-h-[38px] px-3 text-[#94A3B8] hover:text-white uppercase cursor-pointer"
-                  >
-                    Reset Match
-                  </button>
-                  <span className="text-[#94A3B8] truncate max-w-sm">
-                    {a2aThoughtText}
-                  </span>
-                </div>
-              )}
-
-              {/* MATCH OVER CONTROLS */}
-              {turnPhase === 'MATCH_OVER' && (
-                <div className="flex flex-wrap items-center justify-center gap-4 font-display text-base uppercase tracking-wider">
-                  <span className="text-[#FFF3B0] font-extrabold">
-                    {matchWinner === 'LEFT'
-                      ? `${leftFighter.name} WINS`
-                      : matchWinner === 'RIGHT'
-                        ? `${rightFighter.name} WINS`
-                        : 'DRAW MATCH'}
-                  </span>
-                  <button
-                    onClick={() => resetMatch()}
-                    className="min-h-[42px] px-4 border border-[#00F0FF] text-[#00F0FF] hover:text-white font-bold cursor-pointer"
-                  >
-                    Rematch
-                  </button>
-                  {gameMode === 'STORY' &&
-                    matchWinner === 'LEFT' &&
-                    storyChapter < 10 && (
-                      <button
-                        onClick={() => {
-                          const nextChap = storyChapter + 1;
-                          setStoryChapter(nextChap);
-                          resetMatch('STORY', nextChap);
-                        }}
-                        className="min-h-[42px] px-4 border border-[#D4AF37] text-[#FFF3B0] hover:text-white font-extrabold cursor-pointer"
-                      >
-                        Next Arena: Ch. {storyChapter + 1}
-                      </button>
-                    )}
-                </div>
-              )}
-            </div>
-
-            {/* RIGHT BOTTOM: Fighter 2 Slap-Force Meter • Chin Durability */}
-            <div className="hidden lg:flex lg:col-span-3 items-center justify-end gap-3">
-              <div className="min-w-0 flex-1 text-right">
-                <div className="font-mono text-[11px] text-[#E2E8F0] truncate">
-                  Chin {rightHP}% • Slap-Force •{' '}
-                  <span className="text-[#D4AF37] font-bold">
-                    {rightFighter.name}
-                  </span>
-                </div>
-                <div className="w-full h-2 bg-white/10 overflow-hidden mt-1">
-                  <div
-                    className="h-full ml-auto bg-gradient-to-l from-[#00F0FF] via-[#FACC15] to-[#EF4444] transition-all duration-200"
-                    style={{
-                      width: `${
-                        strikerSide === 'RIGHT'
-                          ? Math.max(28, Math.min(100, 75))
-                          : 24
-                      }%`,
-                    }}
-                  />
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* 10-COUNT KO RECOVERY MINI-GAME */}
+            {turnPhase === 'KO_RECOVERY_MINIGAME' && (
+              <div className="w-full max-w-xl flex flex-col items-center gap-1.5">
+                <div className="font-mono text-xs uppercase tracking-wider text-[#EF4444] font-bold tabular-nums">
+                  {activeKODef.name} · 10-Count: {(10 - tenCountSeconds).toFixed(1)}s / 10.0s
+                </div>
+                <div className="relative w-full h-2.5 bg-white/10 overflow-hidden">
+                  <div
+                    className="absolute inset-y-0 bg-[#00E676]/70"
+                    style={{
+                      left: `${(0.5 - activeKODef.recoveryWindowWidth * 0.5) * 100}%`,
+                      width: `${activeKODef.recoveryWindowWidth * 100}%`,
+                    }}
+                  />
+                  <div
+                    className="absolute inset-y-0 w-2 bg-white shadow-[0_0_10px_#FFFFFF]"
+                    style={{ left: `calc(${timingCursor * 100}% - 4px)` }}
+                  />
+                </div>
+                {gameMode === 'STORY' && downedSide === 'LEFT' ? (
+                  <button
+                    onClick={handlePlayerAttemptKORecovery}
+                    className="w-full min-h-[38px] px-5 bg-[#00E676]/25 border border-[#00E676] font-display text-xs sm:text-sm font-extrabold uppercase tracking-wider text-[#00E676] hover:text-white cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
+                  >
+                    TAP GREEN ZONE TO BEAT 10-COUNT!
+                  </button>
+                ) : (
+                  <span className="font-mono text-xs text-[#00F0FF]">
+                    Neural recovery check in progress...
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* A2A AUTONOMOUS MODE CONTROLS */}
+            {gameMode === 'A2A' && turnPhase !== 'KO_RECOVERY_MINIGAME' && (
+              <div className="flex flex-wrap items-center justify-center gap-3 text-xs font-mono">
+                <button
+                  onClick={() => setA2aPaused(!a2aPaused)}
+                  className="min-h-[34px] px-3 border border-[#D4AF37]/60 text-[#FFF3B0] hover:text-white font-bold uppercase cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  {a2aPaused ? 'Resume' : 'Pause'}
+                </button>
+                {[1, 2].map((spd) => (
+                  <button
+                    key={spd}
+                    onClick={() => setA2aSpeed(spd)}
+                    className={`min-h-[34px] px-2.5 cursor-pointer whitespace-nowrap shrink-0 ${
+                      a2aSpeed === spd
+                        ? 'text-[#00F0FF] font-bold border-b-2 border-[#00F0FF]'
+                        : 'text-[#94A3B8] hover:text-white'
+                    }`}
+                  >
+                    {spd}x
+                  </button>
+                ))}
+                <button
+                  onClick={handleTriggerTaunt}
+                  className="min-h-[34px] px-3 border border-[#F59E0B] text-[#F59E0B] hover:text-white font-bold uppercase cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  TAUNT
+                </button>
+                <button
+                  onClick={() => resetMatch()}
+                  className="min-h-[34px] px-2.5 text-[#94A3B8] hover:text-white uppercase cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  Reset
+                </button>
+                <span className="text-[#94A3B8] truncate max-w-xs">{a2aThoughtText}</span>
+              </div>
+            )}
+
+            {/* MATCH OVER CONTROLS */}
+            {turnPhase === 'MATCH_OVER' && (
+              <div className="flex flex-wrap items-center justify-center gap-3 font-display text-sm uppercase tracking-wider">
+                <span className="text-[#FFF3B0] font-extrabold">
+                  {matchWinner === 'LEFT'
+                    ? `${leftFighter.name} WINS`
+                    : matchWinner === 'RIGHT'
+                      ? `${rightFighter.name} WINS`
+                      : 'DRAW MATCH'}
+                </span>
+                <button
+                  onClick={handleTriggerTaunt}
+                  className="min-h-[36px] px-3 border border-[#F59E0B] text-[#F59E0B] hover:text-white font-bold cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  CELEBRATE
+                </button>
+                <button
+                  onClick={() => resetMatch()}
+                  className="min-h-[36px] px-3.5 border border-[#00F0FF] text-[#00F0FF] hover:text-white font-bold cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  Rematch
+                </button>
+                {gameMode === 'STORY' && matchWinner === 'LEFT' && storyChapter < 10 && (
+                  <button
+                    onClick={() => {
+                      const nextChap = storyChapter + 1;
+                      setStoryChapter(nextChap);
+                      resetMatch('STORY', nextChap);
+                    }}
+                    className="min-h-[36px] px-3.5 border border-[#D4AF37] text-[#FFF3B0] hover:text-white font-extrabold cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    Next: Ch. {storyChapter + 1}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-      </footer>
+        </footer>
+      )}
 
       {/* Modals */}
       <FighterCodexModal
@@ -1805,6 +1845,7 @@ export default function App() {
         onClose={() => setIsCodexOpen(false)}
         unlockedChapter={unlockedChapter}
         selectedPlayerId={leftFighter.id}
+        selectedOpponentId={rightFighter.id}
         onSelectPlayerFighter={(id) => {
           if (gameMode === 'STORY') {
             setPlayerFighterId(id);
@@ -1812,6 +1853,15 @@ export default function App() {
             setA2aLeftId(id);
           }
           setTimeout(() => resetMatch(), 25);
+        }}
+        onSelectOpponentFighter={(fighter) => {
+          if (gameMode === 'STORY') {
+            setStoryChapter(fighter.storyChapter);
+            setTimeout(() => resetMatch('STORY', fighter.storyChapter), 25);
+          } else {
+            setA2aRightId(fighter.id);
+            setTimeout(() => resetMatch('A2A', storyChapter), 25);
+          }
         }}
       />
 
@@ -1840,7 +1890,7 @@ export default function App() {
           );
           setTurnPhase('KO_RECOVERY_MINIGAME');
           setStatusBanner(
-            `KO REPLAY CAMERA • ${KO_TYPE_DEFINITIONS[koType].name} • ${rightFighter.name} DOWN`
+            `KO REPLAY · ${KO_TYPE_DEFINITIONS[koType].name} · ${rightFighter.name} DOWN`
           );
         }}
       />
