@@ -1,149 +1,91 @@
-# 🏆 Smack Daddy Championships: Tech Titan Edition
+# 🏆 Smack Daddy Championships: Pixel Edition
 
 <div align="center">
-  <img src="./public/assets/aistudio/image_1792993583222_35c362c9.jpeg" alt="Smack Daddy Championships — Battle of the Titans Poster" width="480" />
+  <img src="./public/assets/aistudio/image_1793066750455_5bb547f5.jpeg" alt="Smack Daddy Championships — 16-Bit Pixel Edition Poster (Bezos vs. Ellison)" width="480" />
   <br />
   <br />
 
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.8+-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-  [![Three.js](https://img.shields.io/badge/Three.js-r186_WebGL2-000000?logo=threedotjs&logoColor=white)](https://threejs.org/)
+  [![HTML5 2D Canvas](https://img.shields.io/badge/Engine-16--Bit_2D_Pixel_Canvas-FACC15?logo=html5&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API)
   [![React 19](https://img.shields.io/badge/React-19.0-61DAFB?logo=react&logoColor=black)](https://react.dev/)
   [![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS-v4.3-38BDF8?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-  [![Vite](https://img.shields.io/badge/Vite-8.3-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+  [![Amazon Appstore Ready](https://img.shields.io/badge/Amazon_Appstore-APK_%2F_Fire_OS_Ready-FF9900?logo=amazon&logoColor=black)](./public/smack-daddy-pixel-edition.html)
   [![License](https://img.shields.io/badge/License-Apache_2.0-D4AF37.svg)](./LICENSE)
 </div>
 
-> **"Battle of the Titans — Tech Giants Collide."**  
-> A studio-grade 3D cinematic slap-fighting game where ten global tech leaders step up to a fluted black metallic slap barrel inside their corporate HQ stadium arenas. Engineered with 100% volumetric 3D fighter rigs (`Contender3DRig`), sculpted 3D facial anatomy, detachable 3D eyeglasses, embossed 3D chest armor branding, deterministic Power Slap biomechanics, a 4-tier Knockout & 10-Count Recovery system, a 10-chapter Single-Player Story Campaign, and an autonomous Agent-to-Agent (A2A) Behavior Tree simulation mode.
+> **"Battle of the Titans — 16-Bit Arcade Tech Giants Collide."**  
+> A high-performance 60 FPS 2D 16-bit pixel-art arcade slap-fighting game where ten global tech leaders step up to a fluted dark-iron slap podium inside a packed championship stadium. Engineered with a coordinate-addressed 16-bit procedural pixel sprite matrix (`drawFighter`), dynamic corporate jumbotrons (`amazon` vs `ORACLE`), deterministic Power Slap biomechanics, a 4-tier Knockout & 10-Count Recovery system, an autonomous Agent-to-Agent (`A2A Auto`) simulation loop, Web Audio API sound synthesis, and a **100% self-contained single-file HTML5 build** (`/public/smack-daddy-pixel-edition.html`) ready for Capacitor / Android / Amazon Appstore packaging.
 
 ---
 
 ## ✨ Key Architectural Highlights
 
-### 🗿 1. 100% Volumetric 3D Contender Rigs (`Contender3DRig`)
-Zero 2D cards, zero flat planes, and zero sideways UV sphere distortion. Every contender is constructed from hierarchical 3D geometry primitives in `src/engine/ArenaScene3D.ts`:
-- **Sculpted 3D Head & Facial Anatomy (`FacialFeaturesRig`)**:
-  - Volumetric upper cranium dome, sculpted 3D cheekbones, prominent 3D brow ridge, and articulated 3D eyebrows.
-  - 3D eyeballs with colored irises and pupils, 3D nose bridge and tip, and sculpted 3D outer ears.
-  - **Hinged 3D Lower Jaw & Chin**: Drops open and shifts laterally on heavy slap contact, revealing an interior mouth cavity and teeth strip.
-  - **Custom 3D Hair, Beards & Detachable Eyeglasses**: Individual 3D hair locks/curls/crests, 3D goatees/beards, and 3D eyeglasses (Jensen Huang, Bill Gates, Sundar Pichai, Satya Nadella) that physically fly off into the arena with gravity and spin on critical slaps ($\ge 130\text{ N}$).
-- **Poster-Accurate 3D Exosuit Armor**:
-  - Broad V-tapered chest and pectoral plates featuring both a **3D geometric company emblem** and an **embossed 3D chest wordmark badge** (`amazon` with orange smile arrow, `ORACLE`, `SPACEX`, `NVIDIA`, `OpenAI`, `Meta`, `CLAUDE`, `Google`, `Microsoft`, `WIN 95`).
-  - **Segmented Tactical Utility Belt**: 8 radial metallic belt cartridges around the waist with a glowing championship buckle.
-  - **Connected Deltoid Pauldrons, Articulated 5-Finger Slap Gauntlets & Shin Straps**: Ball-jointed shoulders with glowing pauldron ribs, chalked open-palm slap hands with 3-segment fingers and thumbs, knee pads, twin metallic shin straps, and armored combat boots.
+### 🎨 1. Coordinate-Based 16-Bit Pixel-Art Sprite Matrix (`drawFighter`)
+Every contender is procedurally rendered via a coordinate-addressed 16-bit pixel-block matrix (`drawFighter(ctx, characterId, state, x, y, facingRight)`) in `src/engine/ArenaScene3D.ts` and `public/smack-daddy-pixel-edition.html`:
+- **Head & Cranium Sub-Blocks**: Sculpted 16-bit skull contour, cheekbone shading, ear with inner tragus pixel, forehead specular highlights, and dynamic lower jaw/chin configuration.
+- **Character-Specific Hair & Facial Hair**:
+  - **Jeff Bezos**: Polished bald dome with multi-pixel specular light reflections, confident smirk, deep blue Amazon polo with yellow arrow branding across the chest.
+  - **Larry Ellison**: Dark combed-back hair with distinct silver temples, stern squinted eyes, trimmed goatee, and red Oracle executive racing jacket with white stripes.
+  - **Mark Zuckerberg**: Short rigid crew cut, blank deadpan stare with periodic robotic wink frame, and dark grey Meta tee.
+  - **Elon Musk**: Tousled brown hair, sarcastic grin, and futuristic black collar-up jacket with cyan rocket-streak trim.
+  - **Jensen Huang**: Flowing dark/silver-streaked locks, thin glasses pixels, and pitch-black biker leather jacket with silver zipper lines and collar flaps.
+  - **Sam Altman**: Neat brown parted hair, mild intellectual expression, and minimalist gray zip-up tech hoodie.
+  - **Satya Nadella**: Professional styled dark hair, warm approachable smile, thin glasses pixels, and sharp navy-blue enterprise blazer.
+  - **Tim Cook**: Distinguished silver hair, thin-framed glasses pixels, immaculate posture, and dark titanium-blue polo.
+  - **Sundar Pichai**: Composed academic expression, neat dark hair, glasses pixels, and smart-casual multi-accented Google executive layer.
+  - **Dario Amodei**: Focused researcher expression, curly dark hair, glasses pixels, and structured charcoal vest over a dark collar.
+- **Dynamic Animation States & Impact Juice**:
+  - **Idle Breathing (`IDLE`)**: Torso and shoulders shift vertically by `1px` every 30 frames (`Math.floor(frameCount / 30) % 2`).
+  - **Slap Wind-Back (`WIND_UP`)**: Forearm and open chalked palm cock back `5px` while the body compresses vertically (squash & stretch).
+  - **Impact Frame (`STRIKE` / `HIT_RECOIL`)**: Flashes the struck character pure white for `2` frames, spawns yellow/orange pixel hit-sparks and white magnesium chalk clouds on the central podium, renders bruised cheek pixels and flying sweat droplets, and shakes the screen coordinates.
 
 ---
 
-### 🏟️ 2. Championship Stadium Arena & Fluted Slap Barrel
-- **Central Fluted Metallic Slap Barrel**: Beveled dark-titanium championship barrel with top rim padding and a recessed **magnesium chalk basin** with a glowing white talcum mound.
-- **Dual Contender Stadium Signage Trusses**: High-contrast illuminated company signage boards suspended in the upper stadium rafters behind the Left Corner and Right Corner contenders (e.g., `AMAZON` vs `ORACLE`), paired with overhead golden stadium floodlight trusses and volumetric light cones.
-- **Interactive 3D Camera Orbit + 4 Broadcast Presets**:
-  - Drag anywhere on the 3D viewport to orbit and inspect the volumetric 3D rigs from any angle (smoothly damps back on release).
-  - Switch between **Broadcast Wide**, **Over-Shoulder P1**, **Over-Shoulder P2**, and **Barrel Close-Up** (`C` key), plus automatic slow-motion 360° KO orbit replays.
+### 🕹️ 2. Persistent Arcade Navigation & HUD Layout
+- **Top Control Bar**: `[ROSTER]` `[SFX TOGGLE]` `[A2A AUTO TOGGLE]` `[CODEX]` `[DOWNLOAD 1-FILE HTML]`.
+- **Dual Top Health Bars**: Dynamic Chin Durability bars (Yellow P1 bar on left with interactive Gold Token counters `x03`; Red P2 bar on right with round pips and active signature indicator).
+- **Center Stadium Stage**: Overhead floodlight trusses, left and right corporate LED jumbotrons (`amazon` blue vs `ORACLE` red), 76 animated 16-bit spectators, and the central dark-iron slap podium.
+- **Bottom Action Hub**: Active fighter nameplates, an oscillating sweet-spot timing bar (`"TAP WHEN THE NEEDLE HITS THE SWEET SPOT"`), and massive touch-friendly `[SLAP!]` and `[BRACE!]` buttons.
 
 ---
 
-### 🧮 3. Deterministic Slap Physics Engine (`src/engine/slapPhysics.ts`)
-Every slap is governed by deterministic biomechanical formulas:
+### 🏛️ 3. The 10-Contender Roster & Signature Mechanics (`src/data/fighters.ts`)
 
-$$\text{SlapForce} = (\text{ArmSpeed} \times \text{Mass} \times \text{Torque}) \times \text{PrecisionMultiplier}$$
-
-$$\text{Damage} = \text{SlapForce} \times (\text{ChinWeakness} \times \text{AngleModifier})$$
-
-$$\text{Knockout Condition: } \text{Damage} \ge \text{Effective KOResistance}$$
-
-| Strike Vector | Angle Modifier | Biomechanical Profile |
-| :--- | :---: | :--- |
-| **Mid Cheek** (`MID_CHEEK`) | `1.02×` | Balanced open-palm cheek compression with maximum sweet-spot consistency |
-| **Jawline Lever** (`JAWLINE_LEVER`) | `1.25×` | Maximum mandibular rotational torque; primary trigger for `CLEAN_KO` & `CRITICAL_KO` |
-| **High Temple** (`HIGH_TEMPLE`) | `1.19×` | Vestibular equilibrium disruption; primary trigger for multi-axis `STAGGER_KO` |
-
----
-
-### 💥 4. 4-Tier Knockout (KO) & 10-Count Recovery System
-When `Damage ≥ Effective KOResistance`, the engine evaluates overkill ratio, strike vector, and fatigue to trigger one of four KO classifications:
-
-| KO Classification | Trigger Rule | Visual & Physics Impact | 10-Count Recovery Mini-Game |
-| :--- | :--- | :--- | :--- |
-| **Clean KO** (`CLEAN_KO`) | `Damage ≥ 1.15 × KOResistance` | Instant rigid-body backward collapse, spotlight flash, 300-particle chalk burst | `16%` recovery zone (`4.4 rad/s` needle) → `38% HP` + **Isometric Reboot** (`+15%` Chin Brace) |
-| **Staggered KO** (`STAGGER_KO`) | `High Temple` vector or `Fatigue ≥ 35%` | Multi-axis vestibular wobble across barrel before lateral knee buckle | `22%` recovery zone (`4.9 rad/s` needle) → `44% HP` + **Gyro Stabilizer** |
-| **Delayed KO** (`DELAYED_KO`) | `Damage ∈ [1.00×, 1.15×) KOResistance` | Defender freezes gripping barrel rim for `0.65s`, then crumples forward | `28%` recovery zone (`3.5 rad/s` needle) → `50% HP` + **Second-Wind Surge** (Special ready) |
-| **Critical KO** (`CRITICAL_KO`) | `Damage ≥ 1.28 × KOResistance` or `≥90%` Sweet-Spot Jawline | `0.20×` super slow-motion, flying 3D glasses, dual shockwave rings, 360° camera orbit | `12%` recovery zone (`5.5 rad/s` needle) → `35% HP` + **Titan Overclock** (`+30%` SlapForce) |
-
----
-
-### 🏛️ 5. The 10 Tech Titan Contenders & Corporate HQ Arenas (`src/data/fighters.ts`)
-
-| Ch. | Contender | Company | 3D Corporate HQ Arena | Signature Exosuit & Special Ability |
+| # | Contender | Nickname | Company | Signature Ability & Mechanic |
 | :-: | :--- | :--- | :--- | :--- |
-| **1** | **Jeff Bezos** | Amazon | Seattle Geodesic Spheres (Biophilic Domes & Fulfillment Rings) | Prime Logistics Exosuit · *Prime Delivery* (`+25%` Sweet-Spot Window) |
-| **2** | **Sam Altman** | OpenAI | San Francisco AI Lab (Rotating Violet Alignment Monoliths) | Frontier Alignment Suit · *Predictive Strike* (`+22%` Angle Multiplier) |
-| **3** | **Elon Musk** | SpaceX | Hawthorne Rocket Hangar (Stainless Starship Booster & Raptor Plume) | Starship Raptor Exosuit · *Falcon Boost* (`+28%` Rotational Torque) |
-| **4** | **Jensen Huang** | NVIDIA | Santa Clara GPU Cathedral (Neon-Green Tensor Core Spires) | Blackwell Leather Armor · *GPU Overclock* (`+24%` Arm Speed & Force) |
-| **5** | **Mark Zuckerberg** | Meta | Menlo Park Metaverse Chamber (Wireframe Horizon & Portal Arch) | Horizon Haptic Mesh Suit · *Metaverse Phase-Shift* (`-25%` Incoming Damage) |
-| **6** | **Larry Ellison** | Oracle | Austin Data Tower Arena (Crimson SQL Server Monoliths & Lasers) | Autonomous Red Samurai Plate · *Red Armor Pulse* (`+30%` Chin Durability) |
-| **7** | **Dario Amodei** | Anthropic | SF Constitutional Safety Lab (Warm Gold-White Harmonic Core) | Claude Constitutional Aegis · *Safety Protocol* (`28%` Force Absorption) |
-| **8** | **Sundar Pichai** | Google | Mountain View Rainbow Campus (4-Color Quantum Arches) | DeepMind Quantum Suit · *Rainbow Algorithm* (`+20%` Precision & Trauma) |
-| **9** | **Satya Nadella** | Microsoft | Redmond Cloud Arena (Hyperscale Azure Server Citadel) | Azure Hyperscale Plate · *Cloud Surge* (`1.25×` SlapForce Multiplier) |
-| **10** | **Bill Gates** | Classic MS | Retro Windows Grid Chamber (1995 Cyan Vector Horizon & 4-Pane Core) | Windows 95 Executive Grid Armor · *Retro Debug* (`-20%` Opponent Precision) |
+| **1** | **Jeff Bezos** | *"The Prime Apex"* | Amazon | **Same-Day Delivery** — Triple-slap combo burst & `+25%` sweet-spot precision window |
+| **2** | **Sam Altman** | *"The Alignment Oracle"* | OpenAI | **Singularity Shield** — Reflects kinetic energy & `+22%` jawline angle multiplier |
+| **3** | **Elon Musk** | *"The Meme Engine"* | xAI / SpaceX | **RNG Rocket** — High-variance critical orbital torque (`+28%`) or self-stumble |
+| **4** | **Jensen Huang** | *"The Leather Jacket Maestro"* | NVIDIA | **Ray-Traced Overdrive** — Screen-blinding neon-green particle burst & `+24%` slap force |
+| **5** | **Mark Zuckerberg** | *"The Metaverse Monarch"* | Meta | **VR Glitch** — Teleport counter-strike & `-25%` incoming head-whip recoil |
+| **6** | **Larry Ellison** | *"The Database Overlord"* | Oracle | **Cloud Lock** — Interferes with opponent timing window & `+30%` chin durability |
+| **7** | **Dario Amodei** | *"The Anthropic Sentinel"* | Anthropic | **Constitutional Guardrail** — Absorbs `28%` of heavy strike impact & prevents critical KOs |
+| **8** | **Sundar Pichai** | *"The Search Engine Sage"* | Google | **Infinite Scroll** — Loops opponent timing bars & `+20%` mandibular precision |
+| **9** | **Satya Nadella** | *"The Cloud Optimizer"* | Microsoft | **Enterprise Synergy** — Stamina/health regeneration buffer & `1.25×` SlapForce multiplier |
+| **10** | **Tim Cook** | *"The Wall Garden Samurai"* | Apple | **Privacy Wall** — Defensive counter specialist that bounces back incoming kinetic damage |
 
 ---
 
-## 🎮 Controls & Keyboard Shortcuts
-
-| Input / Shortcut | Action |
-| :--- | :--- |
-| **Pointer Drag on 3D Arena** | Orbit 3D camera around the contenders and slap barrel |
-| **`Space` / Center Action Button** | Lock **Slap Force Precision Meter** (Offense) / Lock **Chin Brace Meter** (Defense) / Lock **10-Count Recovery Needle** |
-| **`1` / `2` / `3` Buttons** | Select Wind-Up Cadence (`On 1`, `On 2`, or `On 3` for maximum rotational torque) |
-| **`T` Key / Taunt Button** | Trigger contender voice synthesis trash-talk & chalk puff |
-| **`F` Key / Fakeout Button** | Execute psychological flinch-bait shoulder pop (`+15%` next slap torque if defender flinches) |
-| **`C` Key / Cam Button** | Cycle between 4 broadcast camera angles (`Broadcast Wide`, `Over-Shoulder P1`, `Over-Shoulder P2`, `Barrel Close-Up`) |
-| **`H` Key / Hide Controls Toggle** | Toggle **Cinema / Zen Mode** (collapses bottom control dock for an unobstructed 3D stadium view) |
+### 🔊 4. Procedural Web Audio API Sound Suite (`src/engine/soundEffects.ts`)
+Zero external audio files required. All arcade sound effects are synthesized in real time using `AudioContext` oscillators and noise buffers:
+- **Slap Impact**: Bandpass white-noise skin crack layered with a low-frequency sub-bass kinetic thud (`150Hz → 28Hz`).
+- **Critical Hit Chime**: High-pitched 16-bit square-wave arpeggio (`523Hz → 1046Hz`).
+- **Round Bell**: Metallic FM/additive championship ring bell at round start and knockout resolution.
+- **Crowd Roar**: Filtered stadium noise swell that scales with slap force and knockouts.
 
 ---
 
-## 🗂️ Repository Structure
+## 📦 Packaging for Android, Fire OS & Amazon Appstore
 
-```text
-smack-daddy-championships-tech-titan-edition/
-├── .github/
-│   ├── ISSUE_TEMPLATE/
-│   │   ├── bug_report.md            # Structured bug report template
-│   │   └── feature_request.md       # Contender / arena / physics feature template
-│   ├── workflows/
-│   │   └── ci.yml                   # GitHub Actions CI (Node 22, Typecheck & Vite Build)
-│   ├── dependabot.yml               # Automated dependency security updates
-│   └── PULL_REQUEST_TEMPLATE.md     # Pull request verification checklist
-├── docs/
-│   └── ENGINE_SPEC.md               # Deep-dive 3D Volumetric Rig, Biomechanics & Audio Architecture
-├── public/
-│   ├── assets/aistudio/             # Championship Poster & 10 Contender Portrait Assets
-│   └── robots.txt                   # Search engine crawler configuration
-├── src/
-│   ├── components/
-│   │   ├── FighterCodexModal.tsx    # Interactive 10-Contender Roster, P1/P2 Matchup Selector & Upgrades
-│   │   └── PhysicsSpecModal.tsx     # 10 Arenas Challenge Selector, KO Rules & Live Physics Simulator
-│   ├── data/
-│   │   └── fighters.ts              # 10 Contender Profiles, KO Classifications & 11 Story Armor Upgrades
-│   ├── engine/
-│   │   ├── ArenaScene3D.ts          # Three.js WebGL2 Engine: Volumetric 3D Rigs, Stadium Signage & FX
-│   │   ├── slapPhysics.ts           # Deterministic Slap Physics & A2A Behavior Tree Intelligence
-│   │   └── soundEffects.ts          # Procedural Web Audio API Sound Engine & SpeechSynthesis Trash-Talk
-│   ├── App.tsx                      # Broadcast Scoreboard, Cinema Mode Dock & Turn-Based State Machine
-│   ├── index.css                    # Tailwind CSS v4 & Championship Display Typography
-│   └── main.tsx                     # React 19 Entry Point
-├── CHANGELOG.md                     # Version history & release notes
-├── CODE_OF_CONDUCT.md               # Contributor Covenant Code of Conduct
-├── CONTRIBUTING.md                  # Developer setup & contender authoring guide
-├── LICENSE                          # Apache 2.0 License
-├── SECURITY.md                      # Security policy & vulnerability reporting
-├── index.html                       # SEO, OpenGraph, Twitter Card & Schema.org JSON-LD Entry HTML
-├── metadata.json                    # Application capability metadata
-├── package.json                     # Scripts & dependencies
-├── tsconfig.json                    # Strict TypeScript configuration
-└── vite.config.ts                   # Vite 8 bundler configuration
-```
+This repository includes both the full modular Vite + React + TypeScript application **and** the 100% self-contained single-file build at [`public/smack-daddy-pixel-edition.html`](./public/smack-daddy-pixel-edition.html):
+
+1. **Web / Capacitor Build**:
+   ```bash
+   npm install
+   npm run build
+   ```
+2. **Single-File Standalone HTML**:
+   Click **`[DOWNLOAD 1-FILE HTML]`** in the top navigation bar (or copy `public/smack-daddy-pixel-edition.html`) to run the entire game offline in any mobile WebView, Android APK wrapper, or Amazon Fire tablet at a locked 60 FPS.
 
 ---
 
@@ -151,7 +93,7 @@ smack-daddy-championships-tech-titan-edition/
 
 ### Prerequisites
 - **Node.js** `>= 20.0.0` (Node `22 LTS` recommended)
-- **npm** or **bun**
+- **npm**
 
 ### 1. Clone & Install
 ```bash
@@ -171,21 +113,6 @@ Open `http://localhost:3000` in your browser.
 npm run lint
 npm run build
 npm run preview
-```
-
----
-
-## 🌐 Syncing & Pushing to GitHub
-
-If you are syncing directly from AI Studio or pushing from your local terminal:
-
-```bash
-git init
-git add .
-git commit -m "feat: release Smack Daddy Championships v2.0 (3D Volumetric Rigs & Stadium Overhaul)"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/smack-daddy-championships.git
-git push -u origin main
 ```
 
 ---

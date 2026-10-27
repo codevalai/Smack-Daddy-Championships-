@@ -1,0 +1,2329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Smack Daddy Championships: Pixel Edition</title>
+  <style>
+    :root {
+      --bg-void: #05070e;
+      --bg-panel: #080d1a;
+      --bg-card: #0f172a;
+      --gold-bright: #fef08a;
+      --gold-main: #facc15;
+      --gold-dark: #ca8a04;
+      --red-bright: #fca5a5;
+      --red-main: #ef4444;
+      --red-dark: #991b1b;
+      --blue-bright: #38bdf8;
+      --blue-main: #2563eb;
+      --blue-dark: #1e3a8a;
+      --green-main: #22c55e;
+      --pixel-font: 'Courier New', Courier, monospace;
+      --display-font: Impact, 'Arial Black', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    html, body {
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+      background-color: var(--bg-void);
+      color: #f8fafc;
+      font-family: var(--pixel-font);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* CRT Scanline & Vignette Overlay */
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%,
+        rgba(0, 0, 0, 0.22) 50%
+      );
+      background-size: 100% 4px;
+      z-index: 90;
+    }
+
+    /* ============================================================================
+       1. TOP PERSISTENT ARCADE HUD & NAVIGATION BAR
+       ============================================================================ */
+    .top-hud {
+      flex: 0 0 auto;
+      background: var(--bg-panel);
+      border-bottom: 3px solid var(--gold-main);
+      padding: 6px 12px;
+      box-shadow: 0 4px 0 #000;
+      z-index: 30;
+    }
+
+    .nav-strip {
+      max-width: 1440px;
+      margin: 0 auto 6px auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #1e293b;
+    }
+
+    .nav-btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .arcade-nav-btn {
+      background: var(--bg-card);
+      color: var(--gold-bright);
+      border: 2px solid var(--gold-main);
+      padding: 4px 9px;
+      font-family: var(--pixel-font);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 2px 2px 0 #000;
+      transition: transform 0.06s ease, background 0.12s ease;
+    }
+
+    .arcade-nav-btn:hover {
+      background: #1e293b;
+      color: #ffffff;
+    }
+
+    .arcade-nav-btn:active {
+      transform: translate(1px, 1px);
+      box-shadow: 1px 1px 0 #000;
+    }
+
+    .arcade-nav-btn.active-toggle {
+      background: #166534;
+      border-color: #4ade80;
+      color: #ffffff;
+      box-shadow: 0 0 10px rgba(74, 222, 128, 0.45), 2px 2px 0 #000;
+    }
+
+    .arcade-nav-btn.download-btn {
+      background: #1e3a8a;
+      border-color: var(--blue-bright);
+      color: #ffffff;
+    }
+
+    .hud-bars-grid {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .fighter-status-col {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .fighter-status-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .fighter-status-col.right .fighter-status-header {
+      flex-direction: row-reverse;
+    }
+
+    .hud-fighter-name {
+      font-family: var(--display-font);
+      font-size: clamp(14px, 2.2vw, 22px);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      text-shadow: 2px 2px 0 #000;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .fighter-status-col.left .hud-fighter-name {
+      color: var(--gold-main);
+    }
+
+    .fighter-status-col.right .hud-fighter-name {
+      color: var(--red-bright);
+    }
+
+    .hud-chin-stat {
+      font-size: 11px;
+      font-weight: 800;
+      color: #e2e8f0;
+      white-space: nowrap;
+    }
+
+    .health-bar-shell {
+      width: 100%;
+      height: 20px;
+      background: #040711;
+      border: 2px solid #ffffff;
+      padding: 2px;
+      box-shadow: 3px 3px 0 #000;
+      position: relative;
+      display: flex;
+    }
+
+    .fighter-status-col.right .health-bar-shell {
+      justify-content: flex-end;
+    }
+
+    .health-bar-fill {
+      height: 100%;
+      transition: width 0.14s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .fighter-status-col.left .health-bar-fill {
+      background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold-main) 55%, var(--gold-dark) 100%);
+    }
+
+    .fighter-status-col.right .health-bar-fill {
+      background: linear-gradient(180deg, var(--red-bright) 0%, var(--red-main) 55%, var(--red-dark) 100%);
+    }
+
+    .sub-status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .fighter-status-col.right .sub-status-row {
+      flex-direction: row-reverse;
+    }
+
+    .token-box {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #040711;
+      border: 1px solid var(--gold-main);
+      padding: 2px 6px;
+      color: var(--gold-bright);
+      cursor: pointer;
+      box-shadow: 2px 2px 0 #000;
+    }
+
+    .coin-pip {
+      width: 9px;
+      height: 9px;
+      background: var(--gold-main);
+      border: 1px solid var(--gold-bright);
+      display: inline-block;
+    }
+
+    .round-pips {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .round-pip {
+      width: 11px;
+      height: 11px;
+      background: #1e293b;
+      border: 1px solid #94a3b8;
+    }
+
+    .round-pip.won-left {
+      background: var(--green-main);
+      border-color: #bbf7d0;
+      box-shadow: 0 0 6px var(--green-main);
+    }
+
+    .round-pip.won-right {
+      background: var(--red-main);
+      border-color: #fecaca;
+      box-shadow: 0 0 6px var(--red-main);
+    }
+
+    .center-marquee {
+      background: linear-gradient(180deg, #422006 0%, #1c1917 100%);
+      border: 2px solid var(--gold-main);
+      padding: 5px 12px;
+      text-align: center;
+      box-shadow: 0 4px 0 #000, 0 0 18px rgba(250, 204, 21, 0.35);
+    }
+
+    .center-marquee h1 {
+      font-family: var(--display-font);
+      font-size: clamp(12px, 2vw, 20px);
+      color: var(--gold-bright);
+      letter-spacing: 0.08em;
+      text-shadow: 2px 2px 0 #000;
+      line-height: 1.1;
+    }
+
+    .center-marquee .subtitle {
+      font-size: 9px;
+      color: #f59e0b;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    /* ============================================================================
+       2. CENTER STAGE VIEWPORT (60 FPS 16-BIT PIXEL CANVAS + TICKER)
+       ============================================================================ */
+    .stage-viewport {
+      flex: 1 1 auto;
+      position: relative;
+      width: 100%;
+      min-height: 0;
+      background: #05070e;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #arcadeCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      cursor: pointer;
+    }
+
+    .jumbotron-commentary-ticker {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(5, 7, 14, 0.92);
+      border: 2px solid var(--gold-main);
+      padding: 4px 14px;
+      font-size: clamp(10px, 1.5vw, 13px);
+      font-weight: 900;
+      color: var(--gold-bright);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      box-shadow: 4px 4px 0 #000;
+      pointer-events: none;
+      white-space: nowrap;
+      max-width: 94vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      z-index: 20;
+    }
+
+    .ability-toast {
+      position: absolute;
+      top: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.95);
+      border: 2px solid var(--blue-bright);
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 800;
+      color: #ffffff;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      box-shadow: 3px 3px 0 #000;
+      pointer-events: none;
+      z-index: 20;
+      display: none;
+    }
+
+    /* ============================================================================
+       3. BOTTOM ACTION HUB (TIMING BAR + NAMEPLATES + [SLAP!] & [BRACE!])
+       ============================================================================ */
+    .bottom-action-hub {
+      flex: 0 0 auto;
+      background: var(--bg-panel);
+      border-top: 3px solid var(--gold-main);
+      padding: 8px 12px 10px 12px;
+      box-shadow: 0 -4px 0 #000;
+      z-index: 30;
+    }
+
+    .hub-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .timing-bar-container {
+      width: 100%;
+      max-width: 680px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .timing-bar-labels {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .timing-prompt {
+      color: var(--blue-bright);
+    }
+
+    .timing-telemetry {
+      color: var(--gold-bright);
+    }
+
+    .timing-meter-track {
+      position: relative;
+      width: 100%;
+      height: 16px;
+      background: #040711;
+      border: 2px solid #ffffff;
+      box-shadow: 2px 2px 0 #000;
+      overflow: hidden;
+    }
+
+    .timing-meter-gradient {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, #1d4ed8 0%, #22c55e 38%, #facc15 50%, #22c55e 62%, #1d4ed8 100%);
+      opacity: 0.85;
+    }
+
+    .sweet-spot-zone {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 42%;
+      width: 16%;
+      background: var(--gold-main);
+      border-left: 2px solid #ffffff;
+      border-right: 2px solid #ffffff;
+      box-shadow: 0 0 10px var(--gold-main);
+    }
+
+    .timing-needle {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 8px;
+      background: #ffffff;
+      border: 1px solid #000000;
+      box-shadow: 0 0 8px #ffffff;
+      transform: translateX(-50%);
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.6fr 1fr;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nameplate-btn {
+      width: 100%;
+      min-height: 48px;
+      padding: 6px 10px;
+      font-family: var(--display-font);
+      font-size: clamp(13px, 2vw, 20px);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border: 2px solid #ffffff;
+      box-shadow: 4px 4px 0 #000;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      line-height: 1.1;
+    }
+
+    .nameplate-btn span.sub-ability {
+      font-family: var(--pixel-font);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      opacity: 0.9;
+      margin-top: 2px;
+    }
+
+    .nameplate-btn.left-plate {
+      background: linear-gradient(180deg, var(--blue-main) 0%, var(--blue-dark) 100%);
+      border-color: var(--gold-main);
+      color: var(--gold-bright);
+    }
+
+    .nameplate-btn.right-plate {
+      background: linear-gradient(180deg, #dc2626 0%, var(--red-dark) 100%);
+      border-color: var(--red-bright);
+      color: #ffffff;
+    }
+
+    .center-action-cluster {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .round-badge {
+      background: #040711;
+      border: 2px solid var(--gold-main);
+      padding: 2px 12px;
+      font-family: var(--display-font);
+      font-size: 13px;
+      letter-spacing: 0.18em;
+      color: var(--gold-main);
+      box-shadow: 2px 2px 0 #000;
+    }
+
+    .action-buttons-pair {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .big-action-btn {
+      width: 100%;
+      min-height: 50px;
+      padding: 8px 10px;
+      font-family: var(--display-font);
+      font-size: clamp(16px, 2.5vw, 24px);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 2px solid #ffffff;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #000;
+      transition: transform 0.06s ease, filter 0.1s ease;
+    }
+
+    .big-action-btn:active:not(:disabled) {
+      transform: translateY(2px);
+      box-shadow: 0 2px 0 #000;
+    }
+
+    .big-action-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn-slap {
+      background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold-main) 55%, var(--gold-dark) 100%);
+      color: #090d16;
+      box-shadow: 0 4px 0 #713f12, 0 0 18px rgba(250, 204, 21, 0.55);
+    }
+
+    .btn-brace {
+      background: linear-gradient(180deg, #7dd3fc 0%, #0284c7 55%, #0369a1 100%);
+      color: #ffffff;
+      box-shadow: 0 4px 0 #0c4a6e, 0 0 14px rgba(56, 189, 248, 0.45);
+    }
+
+    /* ============================================================================
+       4. MODALS (ROSTER SELECTOR & FIGHTER CODEX)
+       ============================================================================ */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 7, 14, 0.88);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 80;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-window {
+      background: var(--bg-card);
+      border: 4px solid var(--gold-main);
+      box-shadow: 8px 8px 0 #000;
+      width: 100%;
+      max-width: 920px;
+      max-height: 88dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      background: #040711;
+      border-bottom: 2px solid var(--gold-main);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-header h2 {
+      font-family: var(--display-font);
+      font-size: 18px;
+      color: var(--gold-bright);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .modal-close-btn {
+      background: var(--red-dark);
+      color: #ffffff;
+      border: 2px solid var(--red-bright);
+      padding: 4px 10px;
+      font-family: var(--pixel-font);
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      padding: 14px;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
+      gap: 10px;
+    }
+
+    .roster-card {
+      background: #080d1a;
+      border: 2px solid #334155;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      box-shadow: 3px 3px 0 #000;
+    }
+
+    .roster-card.selected-p1 {
+      border-color: var(--gold-main);
+      box-shadow: 0 0 10px rgba(250, 204, 21, 0.35), 3px 3px 0 #000;
+    }
+
+    .roster-card.selected-p2 {
+      border-color: var(--red-main);
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.35), 3px 3px 0 #000;
+    }
+
+    .roster-card-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .roster-card-title h3 {
+      font-family: var(--display-font);
+      font-size: 16px;
+      color: var(--gold-bright);
+      letter-spacing: 0.04em;
+    }
+
+    .roster-company-tag {
+      font-size: 10px;
+      font-weight: 900;
+      padding: 1px 5px;
+      background: #1e293b;
+      color: var(--blue-bright);
+      border: 1px solid #475569;
+    }
+
+    .roster-nickname {
+      font-size: 11px;
+      color: #94a3b8;
+      font-style: italic;
+    }
+
+    .roster-ability-box {
+      background: #040711;
+      border-left: 3px solid var(--gold-main);
+      padding: 5px 7px;
+      font-size: 10px;
+      line-height: 1.35;
+      color: #e2e8f0;
+    }
+
+    .roster-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 800;
+      color: #cbd5e1;
+    }
+
+    .roster-pick-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .pick-btn {
+      padding: 5px;
+      font-family: var(--pixel-font);
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: 1px solid #ffffff;
+    }
+
+    .pick-p1 {
+      background: var(--blue-main);
+      color: var(--gold-bright);
+    }
+
+    .pick-p2 {
+      background: var(--red-dark);
+      color: #ffffff;
+    }
+
+    @media (max-width: 640px) {
+      .controls-grid {
+        grid-template-columns: 1fr 1.8fr 1fr;
+        gap: 6px;
+      }
+      .arcade-nav-btn {
+        font-size: 9px;
+        padding: 3px 6px;
+      }
+      .center-marquee {
+        padding: 3px 6px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==========================================================================
+       1. PERSISTENT TOP NAVIGATION & FEATURE HUD
+       ========================================================================== -->
+  <header class="top-hud">
+    <nav class="nav-strip">
+      <div class="nav-btn-group">
+        <button type="button" class="arcade-nav-btn" id="btnRoster">[ROSTER]</button>
+        <button type="button" class="arcade-nav-btn active-toggle" id="btnSfx">[SFX TOGGLE]</button>
+        <button type="button" class="arcade-nav-btn" id="btnA2A">[A2A AUTO TOGGLE]</button>
+        <button type="button" class="arcade-nav-btn" id="btnCodex">[CODEX]</button>
+      </div>
+      <button type="button" class="arcade-nav-btn download-btn" id="btnDownload">[DOWNLOAD 1-FILE HTML]</button>
+    </nav>
+
+    <div class="hud-bars-grid">
+      <!-- LEFT CONTENDER STATUS -->
+      <div class="fighter-status-col left">
+        <div class="fighter-status-header">
+          <span class="hud-fighter-name" id="leftHudName">BEZOS</span>
+          <span class="hud-chin-stat" id="leftHudChin">100/100 CHIN</span>
+        </div>
+        <div class="health-bar-shell">
+          <div class="health-bar-fill" id="leftHealthFill" style="width: 100%;"></div>
+        </div>
+        <div class="sub-status-row">
+          <div class="token-box" id="coinBtn" title="Click to Insert Gold Token">
+            <span class="coin-pip"></span>
+            <span class="coin-pip"></span>
+            <span class="coin-pip"></span>
+            <span id="tokenCountText">x03</span>
+          </div>
+          <div class="round-pips" id="leftRoundPips">
+            <span class="round-pip"></span>
+            <span class="round-pip"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CENTER CHAMPIONSHIP BANNER -->
+      <div class="center-marquee">
+        <h1>SMACK DADDY CHAMPIONSHIPS</h1>
+        <div class="subtitle" id="modeSubtitle">16-BIT PIXEL EDITION • BEST OF 3</div>
+      </div>
+
+      <!-- RIGHT CONTENDER STATUS -->
+      <div class="fighter-status-col right">
+        <div class="fighter-status-header">
+          <span class="hud-fighter-name" id="rightHudName">ELLISON</span>
+          <span class="hud-chin-stat" id="rightHudChin">100/100 CHIN</span>
+        </div>
+        <div class="health-bar-shell">
+          <div class="health-bar-fill" id="rightHealthFill" style="width: 100%;"></div>
+        </div>
+        <div class="sub-status-row">
+          <div class="token-box" id="brandBadgeRight" style="cursor: default;">
+            <span id="activeBrandingText">AMAZON VS ORACLE</span>
+          </div>
+          <div class="round-pips" id="rightRoundPips">
+            <span class="round-pip"></span>
+            <span class="round-pip"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==========================================================================
+       2. CENTER STAGE (16-BIT PIXEL ARENA CANVAS + JUMBOTRON TICKER)
+       ========================================================================== -->
+  <main class="stage-viewport">
+    <div class="jumbotron-commentary-ticker" id="commentaryTicker">
+      WELCOME TO SMACK DADDY CHAMPIONSHIPS • TAP [SLAP!] WHEN THE NEEDLE HITS THE SWEET SPOT!
+    </div>
+    <div class="ability-toast" id="abilityToast">SIGNATURE TRIGGERED!</div>
+    <canvas id="arcadeCanvas" width="640" height="360"></canvas>
+  </main>
+
+  <!-- ==========================================================================
+       3. BOTTOM ACTION HUB (SWEET-SPOT TIMING BAR + [SLAP!] & [BRACE!])
+       ========================================================================== -->
+  <footer class="bottom-action-hub">
+    <div class="hub-inner">
+      <div class="timing-bar-container">
+        <div class="timing-bar-labels">
+          <span class="timing-prompt" id="timingPromptText">TAP WHEN THE NEEDLE HITS THE SWEET SPOT</span>
+          <span class="timing-telemetry" id="timingTelemetryText">SWEET SPOT: 100% FORCE</span>
+        </div>
+        <div class="timing-meter-track">
+          <div class="timing-meter-gradient"></div>
+          <div class="sweet-spot-zone" id="sweetSpotZone"></div>
+          <div class="timing-needle" id="timingNeedle" style="left: 50%;"></div>
+        </div>
+      </div>
+
+      <div class="controls-grid">
+        <button type="button" class="nameplate-btn left-plate" id="leftNameplateBtn" title="Click to cycle Left Contender">
+          <span id="leftPlateTitle">Bezos</span>
+          <span class="sub-ability" id="leftPlateAbility">Same-Day Delivery</span>
+        </button>
+
+        <div class="center-action-cluster">
+          <div class="round-badge" id="roundBadgeText">ROUND 1</div>
+          <div class="action-buttons-pair">
+            <button type="button" class="big-action-btn btn-slap" id="btnSlap">SLAP!</button>
+            <button type="button" class="big-action-btn btn-brace" id="btnBrace">BRACE!</button>
+          </div>
+        </div>
+
+        <button type="button" class="nameplate-btn right-plate" id="rightNameplateBtn" title="Click to cycle Right Contender">
+          <span id="rightPlateTitle">Ellison</span>
+          <span class="sub-ability" id="rightPlateAbility">Cloud Lock</span>
+        </button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==========================================================================
+       4. 10-CONTENDER ROSTER & CODEX MODAL
+       ========================================================================== -->
+  <div class="modal-backdrop" id="rosterModal">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h2 id="modalHeading">10-CONTENDER TECH TITAN ROSTER & SIGNATURE CODEX</h2>
+        <button type="button" class="modal-close-btn" id="btnCloseModal">[X] CLOSE</button>
+      </div>
+      <div class="modal-body" id="rosterGrid"></div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       5. SELF-CONTAINED 16-BIT SPRITE MATRIX ENGINE, WEB AUDIO SYNTH & A2A LOOP
+       ========================================================================== -->
+  <script>
+    (function () {
+      'use strict';
+
+      /* ------------------------------------------------------------------------
+         1. THE 10-CONTENDER ROSTER & VISUAL SPECIFICATIONS DICTIONARY
+         ------------------------------------------------------------------------ */
+      const CONTENDERS = [
+        {
+          id: 'bezos',
+          name: 'Jeff Bezos',
+          shortName: 'BEZOS',
+          nickname: 'The Prime Apex',
+          company: 'AMAZON',
+          power: 94,
+          chin: 84,
+          precision: 91,
+          skin: '#E8B89A',
+          skinShadow: '#C99372',
+          hair: '#D1D5DB',
+          hairSecondary: '#FFFBEB',
+          torsoPrimary: '#1E3A8A', // Deep blue Amazon polo
+          torsoSecondary: '#172554',
+          accent: '#FACC15', // Yellow arrow branding
+          pants: '#0F172A',
+          signatureName: 'Same-Day Delivery',
+          signatureDesc: 'Triple-slap kinetic combo burst (+35% multi-hit damage on sweet-spot strike).',
+          applySignature: function (ctx) {
+            if (ctx.isSweetSpot) {
+              ctx.damage *= 1.35;
+              ctx.comboHits = 3;
+              ctx.banner = 'SAME-DAY DELIVERY! TRIPLE-SLAP PRIME COMBO!';
+            }
+          }
+        },
+        {
+          id: 'ellison',
+          name: 'Larry Ellison',
+          shortName: 'ELLISON',
+          nickname: 'The Database Overlord',
+          company: 'ORACLE',
+          power: 92,
+          chin: 95,
+          precision: 82,
+          skin: '#DEB08B',
+          skinShadow: '#B88662',
+          hair: '#1F2937', // Dark hair with silver temples
+          hairSecondary: '#CBD5E1',
+          torsoPrimary: '#DC2626', // Red Oracle executive racing jacket
+          torsoSecondary: '#991B1B',
+          accent: '#F8FAFC',
+          pants: '#1E293B',
+          signatureName: 'Cloud Lock',
+          signatureDesc: 'Interferes with opponent timing window and fortifies cervical armor (+25% chin defense).',
+          applySignature: function (ctx) {
+            ctx.defenderJitter = 1.45;
+            ctx.defenseBonus += 0.25;
+            ctx.banner = 'CLOUD LOCK ENGAGED! OPPONENT TIMING JITTERED!';
+          }
+        },
+        {
+          id: 'zuckerberg',
+          name: 'Mark Zuckerberg',
+          shortName: 'ZUCK',
+          nickname: 'The Metaverse Monarch',
+          company: 'META',
+          power: 85,
+          chin: 86,
+          precision: 89,
+          skin: '#F5CBA7',
+          skinShadow: '#D9A782',
+          hair: '#9A5B32', // Short rigid crew cut
+          hairSecondary: '#78350F',
+          torsoPrimary: '#334155', // Dark grey Meta tee
+          torsoSecondary: '#1E293B',
+          accent: '#38BDF8',
+          pants: '#0F172A',
+          signatureName: 'VR Glitch',
+          signatureDesc: 'Teleport counter-strike: phases through 30% of incoming damage and snaps back.',
+          applySignature: function (ctx) {
+            ctx.damage *= 1.22;
+            ctx.counterDamage = 8;
+            ctx.banner = 'VR GLITCH! TELEPORT COUNTER-STRIKE (+8 RECOIL DMG)!';
+          }
+        },
+        {
+          id: 'musk',
+          name: 'Elon Musk',
+          shortName: 'MUSK',
+          nickname: 'The Meme Engine',
+          company: 'xAI / SPACEX',
+          power: 96,
+          chin: 86,
+          precision: 74,
+          skin: '#ECC3A5',
+          skinShadow: '#C89B7B',
+          hair: '#3B2314', // Tousled brown hair
+          hairSecondary: '#5C3A21',
+          torsoPrimary: '#0F172A', // Futuristic black collar-up jacket
+          torsoSecondary: '#1E293B',
+          accent: '#38BDF8', // Rocket-streak trim
+          pants: '#090D16',
+          signatureName: 'RNG Rocket',
+          signatureDesc: 'High variance orbital thruster: 70% chance of 1.55x Critical Payload, 30% self-stumble.',
+          applySignature: function (ctx) {
+            if (Math.random() < 0.72) {
+              ctx.damage *= 1.55;
+              ctx.banner = 'RNG ROCKET: ORBITAL CRITICAL DETONATION (1.55x)!';
+            } else {
+              ctx.damage *= 0.65;
+              ctx.selfDamage = 6;
+              ctx.banner = 'RNG ROCKET: RAPID UNSCHEDULED STUMBLE (-6 SELF HP)!';
+            }
+          }
+        },
+        {
+          id: 'huang',
+          name: 'Jensen Huang',
+          shortName: 'JENSEN',
+          nickname: 'The Leather Jacket Maestro',
+          company: 'NVIDIA',
+          power: 91,
+          chin: 85,
+          precision: 90,
+          skin: '#E5B895',
+          skinShadow: '#C2926E',
+          hair: '#1F2937', // Flowing dark locks
+          hairSecondary: '#D1D5DB',
+          torsoPrimary: '#0A0A0A', // Pitch-black leather jacket
+          torsoSecondary: '#1F2937',
+          accent: '#76B900',
+          pants: '#090D16',
+          signatureName: 'Ray-Traced Overdrive',
+          signatureDesc: 'Unleashes a screen-blinding neon-green CUDA particle burst (+28% slap force).',
+          applySignature: function (ctx) {
+            ctx.damage *= 1.28;
+            ctx.overdriveFlash = '#76B900';
+            ctx.banner = 'RAY-TRACED OVERDRIVE! 1000W TENSOR PALM STRIKE!';
+          }
+        },
+        {
+          id: 'altman',
+          name: 'Sam Altman',
+          shortName: 'ALTMAN',
+          nickname: 'The Alignment Oracle',
+          company: 'OPENAI',
+          power: 81,
+          chin: 92,
+          precision: 97,
+          skin: '#F1C6A7',
+          skinShadow: '#D2A180',
+          hair: '#4B3621', // Neat brown parted hair
+          hairSecondary: '#291D12',
+          torsoPrimary: '#64748B', // Minimalist gray zip-up tech hoodie
+          torsoSecondary: '#475569',
+          accent: '#A855F7',
+          pants: '#1E293B',
+          signatureName: 'Singularity Shield',
+          signatureDesc: 'Reflects 25% of incoming kinetic energy back onto the attacker.',
+          applySignature: function (ctx) {
+            ctx.reflectRatio = 0.25;
+            ctx.damage *= 1.18;
+            ctx.banner = 'SINGULARITY SHIELD! KINETIC VECTOR ALIGNED!';
+          }
+        },
+        {
+          id: 'nadella',
+          name: 'Satya Nadella',
+          shortName: 'NADELLA',
+          nickname: 'The Cloud Optimizer',
+          company: 'MICROSOFT',
+          power: 86,
+          chin: 89,
+          precision: 89,
+          skin: '#CFA17B',
+          skinShadow: '#AD7E58',
+          hair: '#1E293B', // Professional styled dark hair
+          hairSecondary: '#94A3B8',
+          torsoPrimary: '#1E3A8A', // Sharp navy blue enterprise blazer
+          torsoSecondary: '#0F172A',
+          accent: '#00A4EF',
+          pants: '#0F172A',
+          signatureName: 'Enterprise Synergy',
+          signatureDesc: 'Regenerates +10 Chin Durability buffer while delivering balanced cloud torque.',
+          applySignature: function (ctx) {
+            ctx.healSelf = 10;
+            ctx.damage *= 1.18;
+            ctx.banner = 'ENTERPRISE SYNERGY! +10 CHIN HP REGENERATED!';
+          }
+        },
+        {
+          id: 'cook',
+          name: 'Tim Cook',
+          shortName: 'COOK',
+          nickname: 'The Wall Garden Samurai',
+          company: 'APPLE',
+          power: 84,
+          chin: 94,
+          precision: 92,
+          skin: '#F1C6A7',
+          skinShadow: '#D2A180',
+          hair: '#E2E8F0', // Distinguished silver hair
+          hairSecondary: '#94A3B8',
+          torsoPrimary: '#1E293B', // Dark titanium-blue polo
+          torsoSecondary: '#0F172A',
+          accent: '#38BDF8',
+          pants: '#090D16',
+          signatureName: 'Privacy Wall',
+          signatureDesc: 'Defensive counter specialist: bounces back incoming damage with Grade-5 Titanium.',
+          applySignature: function (ctx) {
+            ctx.defenseBonus += 0.30;
+            ctx.counterDamage = 10;
+            ctx.banner = 'PRIVACY WALL! TITANIUM COUNTER BOUNCE (+10 DMG)!';
+          }
+        },
+        {
+          id: 'pichai',
+          name: 'Sundar Pichai',
+          shortName: 'PICHAI',
+          nickname: 'The Search Engine Sage',
+          company: 'GOOGLE',
+          power: 83,
+          chin: 84,
+          precision: 96,
+          skin: '#C68B59',
+          skinShadow: '#A36A3A',
+          hair: '#111827', // Neat dark hair
+          hairSecondary: '#374151',
+          torsoPrimary: '#1E293B', // Smart-casual multi-accented executive layer
+          torsoSecondary: '#334155',
+          accent: '#22C55E',
+          pants: '#0F172A',
+          signatureName: 'Infinite Scroll',
+          signatureDesc: 'Loops opponent timing bars at high speed and locks onto the jawline weak spot.',
+          applySignature: function (ctx) {
+            ctx.damage *= 1.24;
+            ctx.defenderJitter = 1.65;
+            ctx.banner = 'INFINITE SCROLL! ALGORITHMIC WEAK-POINT LOCK!';
+          }
+        },
+        {
+          id: 'amodei',
+          name: 'Dario Amodei',
+          shortName: 'AMODEI',
+          nickname: 'The Anthropic Sentinel',
+          company: 'ANTHROPIC',
+          power: 82,
+          chin: 92,
+          precision: 94,
+          skin: '#EBC2A4',
+          skinShadow: '#C79B7C',
+          hair: '#1C1917',
+          hairSecondary: '#44403C',
+          torsoPrimary: '#292524', // Structured vest over dark collar
+          torsoSecondary: '#0C0A09',
+          accent: '#D97706',
+          pants: '#1C1917',
+          signatureName: 'Constitutional Guardrail',
+          signatureDesc: 'Absorbs heavy strike impact (-30% incoming trauma) and neutralizes critical KOs.',
+          applySignature: function (ctx) {
+            ctx.defenseBonus += 0.32;
+            ctx.healSelf = 6;
+            ctx.banner = 'CONSTITUTIONAL GUARDRAIL! HEAVY IMPACT ABSORBED!';
+          }
+        }
+      ];
+
+      /* ------------------------------------------------------------------------
+         2. PROCEDURAL WEB AUDIO API SOUND SYNTHESIZER (ZERO EXTERNAL FILES)
+         ------------------------------------------------------------------------ */
+      class RetroSoundSynth {
+        constructor() {
+          this.ctx = null;
+          this.enabled = true;
+        }
+
+        ensureContext() {
+          if (!this.enabled) return null;
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) this.ctx = new AudioCtx();
+          }
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume().catch(function () {});
+          }
+          return this.ctx;
+        }
+
+        playSlapImpact(isCritical) {
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+          const now = ctx.currentTime;
+
+          // 1. White-noise open-palm skin crack
+          const bufLen = Math.floor(ctx.sampleRate * 0.22);
+          const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+          const data = buf.getChannelData(0);
+          for (let i = 0; i < bufLen; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.035));
+          }
+          const noise = ctx.createBufferSource();
+          noise.buffer = buf;
+
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(isCritical ? 1650 : 1200, now);
+          filter.Q.value = 1.4;
+
+          const noiseGain = ctx.createGain();
+          noiseGain.gain.setValueAtTime(isCritical ? 0.85 : 0.6, now);
+          noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.21);
+
+          noise.connect(filter);
+          filter.connect(noiseGain);
+          noiseGain.connect(ctx.destination);
+          noise.start(now);
+
+          // 2. Low-frequency sub-bass kinetic thud
+          const sub = ctx.createOscillator();
+          const subGain = ctx.createGain();
+          sub.type = 'sine';
+          sub.frequency.setValueAtTime(isCritical ? 150 : 115, now);
+          sub.frequency.exponentialRampToValueAtTime(28, now + 0.26);
+
+          subGain.gain.setValueAtTime(isCritical ? 0.75 : 0.5, now);
+          subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+          sub.connect(subGain);
+          subGain.connect(ctx.destination);
+          sub.start(now);
+          sub.stop(now + 0.29);
+
+          if (isCritical) {
+            this.playCriticalChime();
+          }
+        }
+
+        playCriticalChime() {
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+          const now = ctx.currentTime;
+          const freqs = [523.25, 659.25, 783.99, 1046.5];
+          freqs.forEach(function (f, idx) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(f, now + idx * 0.045);
+            gain.gain.setValueAtTime(0.14, now + idx * 0.045);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.045 + 0.16);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + idx * 0.045);
+            osc.stop(now + idx * 0.045 + 0.17);
+          });
+        }
+
+        playRoundBell() {
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+          const now = ctx.currentTime;
+          const partials = [440, 880, 1320, 1760];
+          partials.forEach(function (freq, i) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = i % 2 === 0 ? 'sine' : 'triangle';
+            osc.frequency.setValueAtTime(freq, now);
+            gain.gain.setValueAtTime(0.22 / (i + 1), now);
+            gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.85);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.88);
+          });
+        }
+
+        playCrowdRoar(isKO) {
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+          const now = ctx.currentTime;
+          const dur = isKO ? 0.9 : 0.42;
+          const bufLen = Math.floor(ctx.sampleRate * dur);
+          const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+          const data = buf.getChannelData(0);
+          for (let i = 0; i < bufLen; i++) {
+            const env = Math.sin((i / bufLen) * Math.PI);
+            data[i] = (Math.random() * 2 - 1) * env;
+          }
+          const src = ctx.createBufferSource();
+          src.buffer = buf;
+
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(620, now);
+          filter.frequency.linearRampToValueAtTime(1150, now + dur * 0.5);
+          filter.Q.value = 0.9;
+
+          const gain = ctx.createGain();
+          gain.gain.setValueAtTime(isKO ? 0.32 : 0.16, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+          src.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+          src.start(now);
+        }
+      }
+
+      const sfx = new RetroSoundSynth();
+
+      /* ------------------------------------------------------------------------
+         3. GAME STATE & AUTONOMOUS A2A ENGINE
+         ------------------------------------------------------------------------ */
+      const state = {
+        leftIdx: 0,  // Jeff Bezos
+        rightIdx: 1, // Larry Ellison
+        leftHP: 100,
+        rightHP: 100,
+        leftRounds: 0,
+        rightRounds: 0,
+        round: 1,
+        maxRounds: 3,
+        tokens: 3,
+        striker: 'LEFT', // 'LEFT' | 'RIGHT'
+        phase: 'AIMING', // 'AIMING' | 'WINDUP' | 'IMPACT' | 'ROUND_OVER'
+        a2aAuto: false,
+        a2aTimer: 0,
+        needlePos: 0.5,
+        needleSpeed: 3.8,
+        braceBuffLeft: 0,
+        braceBuffRight: 0,
+        jitterMultiplier: 1.0,
+        leftState: 'IDLE',  // 'IDLE' | 'WIND_UP' | 'STRIKE' | 'HIT_RECOIL'
+        rightState: 'IDLE', // 'IDLE' | 'WIND_UP' | 'STRIKE' | 'HIT_RECOIL'
+        leftFlashFrames: 0,
+        rightFlashFrames: 0,
+        frameCount: 0,
+        shake: 0,
+        screenFlashAlpha: 0,
+        screenFlashColor: '#FFF7D6',
+        particles: [],
+        hitSparks: [],
+        crowd: []
+      };
+
+      // Initialize 76 16-bit animated stadium spectators
+      for (let i = 0; i < 76; i++) {
+        state.crowd.push({
+          x: (i * 19) % 640,
+          y: 128 + (i % 3) * 18,
+          color: ['#1E3A8A', '#991B1B', '#374151', '#065F46', '#581C87', '#B45309'][i % 6],
+          skin: ['#F1C6A7', '#E0AC69', '#C68642', '#8D5524'][i % 4],
+          phase: i * 0.7,
+          hasSign: i % 9 === 0,
+          signColor: i % 2 === 0 ? '#FACC15' : '#EF4444'
+        });
+      }
+
+      /* ------------------------------------------------------------------------
+         4. DOM REFERENCES & UI SYNCHRONIZATION
+         ------------------------------------------------------------------------ */
+      const canvas = document.getElementById('arcadeCanvas');
+      const ctx = canvas.getContext('2d', { alpha: false });
+      ctx.imageSmoothingEnabled = false;
+
+      const elLeftHudName = document.getElementById('leftHudName');
+      const elRightHudName = document.getElementById('rightHudName');
+      const elLeftHudChin = document.getElementById('leftHudChin');
+      const elRightHudChin = document.getElementById('rightHudChin');
+      const elLeftHealthFill = document.getElementById('leftHealthFill');
+      const elRightHealthFill = document.getElementById('rightHealthFill');
+      const elLeftRoundPips = document.getElementById('leftRoundPips');
+      const elRightRoundPips = document.getElementById('rightRoundPips');
+      const elActiveBranding = document.getElementById('activeBrandingText');
+      const elTokenCount = document.getElementById('tokenCountText');
+      const elCommentary = document.getElementById('commentaryTicker');
+      const elAbilityToast = document.getElementById('abilityToast');
+      const elTimingPrompt = document.getElementById('timingPromptText');
+      const elTimingTelemetry = document.getElementById('timingTelemetryText');
+      const elTimingNeedle = document.getElementById('timingNeedle');
+      const elLeftPlateTitle = document.getElementById('leftPlateTitle');
+      const elLeftPlateAbility = document.getElementById('leftPlateAbility');
+      const elRightPlateTitle = document.getElementById('rightPlateTitle');
+      const elRightPlateAbility = document.getElementById('rightPlateAbility');
+      const elRoundBadge = document.getElementById('roundBadgeText');
+      const elBtnSlap = document.getElementById('btnSlap');
+      const elBtnBrace = document.getElementById('btnBrace');
+      const elBtnA2A = document.getElementById('btnA2A');
+      const elBtnSfx = document.getElementById('btnSfx');
+      const elModeSubtitle = document.getElementById('modeSubtitle');
+      const elRosterModal = document.getElementById('rosterModal');
+      const elRosterGrid = document.getElementById('rosterGrid');
+
+      function showAbilityToast(text) {
+        elAbilityToast.textContent = text;
+        elAbilityToast.style.display = 'block';
+        clearTimeout(showAbilityToast._t);
+        showAbilityToast._t = setTimeout(function () {
+          elAbilityToast.style.display = 'none';
+        }, 1750);
+      }
+
+      function syncHUD() {
+        const L = CONTENDERS[state.leftIdx];
+        const R = CONTENDERS[state.rightIdx];
+
+        elLeftHudName.textContent = L.shortName;
+        elRightHudName.textContent = R.shortName;
+        elLeftHudChin.textContent = Math.ceil(state.leftHP) + '/100 CHIN';
+        elRightHudChin.textContent = Math.ceil(state.rightHP) + '/100 CHIN';
+
+        elLeftHealthFill.style.width = Math.max(0, state.leftHP) + '%';
+        elRightHealthFill.style.width = Math.max(0, state.rightHP) + '%';
+
+        elActiveBranding.textContent = L.company + ' VS ' + R.company;
+        elTokenCount.textContent = 'x0' + state.tokens;
+
+        elLeftPlateTitle.textContent = L.shortName;
+        elLeftPlateAbility.textContent = L.signatureName;
+        elRightPlateTitle.textContent = R.shortName;
+        elRightPlateAbility.textContent = R.signatureName;
+
+        elRoundBadge.textContent = 'ROUND ' + state.round;
+
+        elLeftRoundPips.innerHTML = [0, 1].map(function (idx) {
+          return '<span class="round-pip ' + (state.leftRounds > idx ? 'won-left' : '') + '"></span>';
+        }).join('');
+        elRightRoundPips.innerHTML = [0, 1].map(function (idx) {
+          return '<span class="round-pip ' + (state.rightRounds > idx ? 'won-right' : '') + '"></span>';
+        }).join('');
+
+        const lockButtons = state.a2aAuto || state.phase !== 'AIMING';
+        elBtnSlap.disabled = lockButtons;
+        elBtnBrace.disabled = lockButtons;
+      }
+
+      /* ------------------------------------------------------------------------
+         5. COMBAT RESOLUTION, SWEET-SPOT PHYSICS & SIGNATURE ABILITIES
+         ------------------------------------------------------------------------ */
+      function spawnImpactParticles(x, y, accentColor, isCrit) {
+        const count = isCrit ? 64 : 38;
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = (isCrit ? 190 : 120) * (0.3 + Math.random() * 0.9);
+          const colors = ['#FEF08A', '#FACC15', '#F97316', '#FFFFFF', accentColor];
+          state.particles.push({
+            x: x,
+            y: y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 45,
+            size: Math.random() < 0.45 ? 4 : 3,
+            color: colors[i % colors.length],
+            life: 0,
+            maxLife: 0.38 + Math.random() * 0.42
+          });
+        }
+        state.hitSparks.push({
+          x: 320, // Trigger yellow/orange pixel hit-sparks on the central podium!
+          y: 185,
+          life: 0,
+          maxLife: isCrit ? 0.42 : 0.28,
+          maxRadius: isCrit ? 56 : 38,
+          isCrit: isCrit,
+          label: isCrit ? 'CRITICAL SLAP!' : 'SMACK!'
+        });
+      }
+
+      function triggerStrike(precisionScore) {
+        if (state.phase !== 'AIMING') return;
+        state.phase = 'WINDUP';
+
+        const isLeftAttacking = state.striker === 'LEFT';
+        const attacker = isLeftAttacking ? CONTENDERS[state.leftIdx] : CONTENDERS[state.rightIdx];
+        const defender = isLeftAttacking ? CONTENDERS[state.rightIdx] : CONTENDERS[state.leftIdx];
+
+        if (isLeftAttacking) {
+          state.leftState = 'WIND_UP';
+          state.rightState = 'IDLE';
+        } else {
+          state.rightState = 'WIND_UP';
+          state.leftState = 'IDLE';
+        }
+
+        const isSweetSpot = precisionScore >= 0.84;
+        elCommentary.textContent =
+          attacker.name.toUpperCase() + ' COCKS BACK 5PX TORQUE (' + Math.round(precisionScore * 100) + '% SWEET SPOT)...';
+
+        setTimeout(function () {
+          state.phase = 'IMPACT';
+
+          if (isLeftAttacking) {
+            state.leftState = 'STRIKE';
+            state.rightState = 'HIT_RECOIL';
+            state.rightFlashFrames = 2; // Flash defender pure white for 2 frames!
+          } else {
+            state.rightState = 'STRIKE';
+            state.leftState = 'HIT_RECOIL';
+            state.leftFlashFrames = 2; // Flash defender pure white for 2 frames!
+          }
+
+          const baseDmg = 18 + (attacker.power - defender.chin * 0.45) * 0.28;
+          const combatCtx = {
+            isSweetSpot: isSweetSpot,
+            damage: baseDmg * (0.55 + precisionScore * 0.72),
+            defenseBonus: isLeftAttacking ? state.braceBuffRight : state.braceBuffLeft,
+            comboHits: 1,
+            counterDamage: 0,
+            reflectRatio: 0,
+            selfDamage: 0,
+            healSelf: 0,
+            defenderJitter: 1.0,
+            overdriveFlash: null,
+            banner: null
+          };
+
+          if (isSweetSpot || Math.random() < 0.45) {
+            attacker.applySignature(combatCtx);
+          }
+
+          const finalDamage = Math.max(
+            6,
+            Math.round(combatCtx.damage * (1 - Math.min(0.65, combatCtx.defenseBonus)))
+          );
+          const newtonForce = Math.round(78 + finalDamage * 2.4);
+
+          if (isLeftAttacking) {
+            state.rightHP = Math.max(0, state.rightHP - finalDamage);
+            state.leftHP = Math.min(100, Math.max(1, state.leftHP + combatCtx.healSelf - combatCtx.selfDamage));
+            state.braceBuffRight = 0;
+          } else {
+            state.leftHP = Math.max(0, state.leftHP - finalDamage);
+            state.rightHP = Math.min(100, Math.max(1, state.rightHP + combatCtx.healSelf - combatCtx.selfDamage));
+            state.braceBuffLeft = 0;
+          }
+
+          state.jitterMultiplier = combatCtx.defenderJitter;
+          state.shake = isSweetSpot ? 14 : 8;
+          state.screenFlashAlpha = isSweetSpot ? 0.5 : 0.22;
+          state.screenFlashColor = combatCtx.overdriveFlash || (isSweetSpot ? '#FEF08A' : '#FFFFFF');
+
+          spawnImpactParticles(320, 185, attacker.accent, isSweetSpot);
+
+          sfx.playSlapImpact(isSweetSpot);
+          sfx.playCrowdRoar(state.leftHP <= 0 || state.rightHP <= 0);
+
+          if (combatCtx.banner) {
+            showAbilityToast(combatCtx.banner);
+          }
+
+          elTimingTelemetry.textContent = newtonForce + ' N FORCE • -' + finalDamage + ' CHIN HP';
+          elCommentary.textContent =
+            attacker.shortName + ' CONNECTS FOR ' + newtonForce + ' N (-' + finalDamage + ' HP) ON ' + defender.shortName + '!';
+
+          syncHUD();
+
+          setTimeout(function () {
+            if (state.leftHP <= 0 || state.rightHP <= 0) {
+              const winnerSide = state.rightHP <= 0 ? 'LEFT' : 'RIGHT';
+              handleRoundKnockout(winnerSide);
+            } else {
+              state.leftState = 'IDLE';
+              state.rightState = 'IDLE';
+              state.striker = state.striker === 'LEFT' ? 'RIGHT' : 'LEFT';
+              state.phase = 'AIMING';
+              state.a2aTimer = 0;
+
+              if (!state.a2aAuto && state.striker === 'RIGHT') {
+                elTimingPrompt.textContent = defender.shortName + ' WINDING UP! TAP [BRACE!] NOW!';
+              } else {
+                elTimingPrompt.textContent = 'TAP WHEN THE NEEDLE HITS THE SWEET SPOT';
+              }
+              syncHUD();
+            }
+          }, 820);
+        }, 420);
+      }
+
+      function handleRoundKnockout(winnerSide) {
+        state.phase = 'ROUND_OVER';
+        sfx.playRoundBell();
+
+        if (winnerSide === 'LEFT') {
+          state.leftRounds += 1;
+          state.tokens = Math.min(9, state.tokens + 1);
+          state.leftState = 'STRIKE';
+          state.rightState = 'HIT_RECOIL';
+        } else {
+          state.rightRounds += 1;
+          state.rightState = 'STRIKE';
+          state.leftState = 'HIT_RECOIL';
+        }
+
+        const winContender = winnerSide === 'LEFT' ? CONTENDERS[state.leftIdx] : CONTENDERS[state.rightIdx];
+        elCommentary.textContent =
+          'KNOCKOUT! ' + winContender.name.toUpperCase() + ' WINS ROUND ' + state.round + '!';
+        syncHUD();
+
+        setTimeout(function () {
+          if (state.leftRounds >= 2 || state.rightRounds >= 2 || state.round >= state.maxRounds) {
+            const champ = state.leftRounds >= state.rightRounds ? CONTENDERS[state.leftIdx] : CONTENDERS[state.rightIdx];
+            elCommentary.textContent =
+              'CHAMPION CROWNED: ' + champ.name.toUpperCase() + ' (' + champ.company + ')! STARTING NEXT BOUT...';
+
+            setTimeout(function () {
+              if (state.a2aAuto) {
+                state.leftIdx = (state.leftIdx + 1) % CONTENDERS.length;
+                state.rightIdx = (state.rightIdx + 2) % CONTENDERS.length;
+                if (state.leftIdx === state.rightIdx) {
+                  state.rightIdx = (state.rightIdx + 1) % CONTENDERS.length;
+                }
+              }
+              resetMatch();
+            }, 1600);
+          } else {
+            state.round += 1;
+            state.leftHP = 100;
+            state.rightHP = 100;
+            state.leftState = 'IDLE';
+            state.rightState = 'IDLE';
+            state.striker = 'LEFT';
+            state.phase = 'AIMING';
+            state.a2aTimer = 0;
+            sfx.playRoundBell();
+            elCommentary.textContent = 'ROUND ' + state.round + ' — FIGHT!';
+            syncHUD();
+          }
+        }, 1550);
+      }
+
+      function resetMatch() {
+        state.leftHP = 100;
+        state.rightHP = 100;
+        state.leftRounds = 0;
+        state.rightRounds = 0;
+        state.round = 1;
+        state.striker = 'LEFT';
+        state.phase = 'AIMING';
+        state.leftState = 'IDLE';
+        state.rightState = 'IDLE';
+        state.leftFlashFrames = 0;
+        state.rightFlashFrames = 0;
+        state.braceBuffLeft = 0;
+        state.braceBuffRight = 0;
+        state.jitterMultiplier = 1.0;
+        state.a2aTimer = 0;
+        sfx.playRoundBell();
+        const L = CONTENDERS[state.leftIdx];
+        const R = CONTENDERS[state.rightIdx];
+        elCommentary.textContent =
+          L.name.toUpperCase() + ' VS ' + R.name.toUpperCase() + ' • ROUND 1 FIGHT!';
+        syncHUD();
+      }
+
+      /* ------------------------------------------------------------------------
+         6. MASTER 16-BIT COORDINATE-BASED PIXEL SPRITE RENDERER
+            drawFighter(ctx, characterId, fighterState, x, y, facingRight)
+         ------------------------------------------------------------------------ */
+      function drawPixelRect(x, y, w, h, color) {
+        ctx.fillStyle = color;
+        ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+      }
+
+      function drawFighter(ctx, characterId, fighterState, x, y, facingRight) {
+        const P = 2; // 16-bit pixel block scale (2x2 virtual canvas pixels per texel)
+        const dir = facingRight ? 1 : -1;
+        const contender = CONTENDERS.find(function (c) { return c.id === characterId; }) || CONTENDERS[0];
+
+        // 1-pixel vertical breathing shift every 30 frames
+        const breathShift = fighterState === 'IDLE'
+          ? (Math.floor(state.frameCount / 30) % 2 === 0 ? 0 : 1)
+          : 0;
+
+        // Check if this fighter is in their 2-frame white impact flash
+        const isFlashingWhite = facingRight
+          ? state.leftFlashFrames > 0
+          : state.rightFlashFrames > 0;
+
+        // Squash & stretch + positional lunge offsets
+        let bodyOffsetX = 0;
+        let scaleY = 1.0;
+        let scaleX = 1.0;
+
+        if (fighterState === 'WIND_UP') {
+          bodyOffsetX = -dir * 4 * P;
+          scaleY = 0.94; // Vertical squash compression on wind-up
+          scaleX = 1.05;
+        } else if (fighterState === 'STRIKE') {
+          bodyOffsetX = dir * 14 * P;
+          scaleY = 1.03;
+        } else if (fighterState === 'HIT_RECOIL') {
+          bodyOffsetX = -dir * 9 * P;
+          scaleY = 0.96;
+        }
+
+        ctx.save();
+        ctx.translate(Math.round(x + bodyOffsetX), Math.round(y));
+        ctx.scale(facingRight ? scaleX : -scaleX, scaleY);
+
+        // Coordinate-based pixel sub-block plotter in local fighter grid space
+        function px(gx, gy, gw, gh, color) {
+          ctx.fillStyle = isFlashingWhite ? '#FFFFFF' : color;
+          ctx.fillRect(
+            Math.round(gx * P),
+            Math.round(-(gy + gh) * P),
+            Math.round(gw * P),
+            Math.round(gh * P)
+          );
+        }
+
+        const by = -breathShift;
+
+        // SUB-BLOCK 1: FLOOR SHADOW, LEGS & BOOTS
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(-18 * P, -2 * P, 36 * P, 4 * P);
+
+        px(-13, 4, 9, 18, contender.pants);
+        px(4, 4, 9, 18, contender.pants);
+        px(-12, 11, 7, 3, contender.torsoSecondary);
+        px(5, 11, 7, 3, contender.torsoSecondary);
+        px(-15, 0, 12, 5, '#090D16');
+        px(3, 0, 13, 5, '#090D16');
+        px(-14, 1, 10, 1, contender.accent);
+        px(4, 1, 11, 1, contender.accent);
+
+        // Championship Utility Belt
+        px(-14, 21 + by, 28, 4, '#090D16');
+        px(-3, 21 + by, 6, 4, '#FACC15');
+
+        // SUB-BLOCK 2: BACK GUARD ARM ON PODIUM
+        px(10, 34 + by, 12, 6, contender.torsoPrimary);
+        px(20, 33 + by, 7, 5, contender.skin);
+
+        // SUB-BLOCK 3: ATTIRE, COLLAR LINES, SLEEVES & MICRO-PIXEL CHEST LOGOS
+        px(-16, 24 + by, 32, 24, '#090D16');
+        px(-15, 25 + by, 30, 22, contender.torsoPrimary);
+        px(-15, 25 + by, 5, 22, contender.torsoSecondary);
+
+        if (characterId === 'bezos') {
+          // Deep blue Amazon polo with yellow arrow branding across the chest
+          px(-6, 44 + by, 12, 4, '#172554');
+          px(-1, 39 + by, 2, 6, '#0F172A');
+          px(-8, 35 + by, 3, 2, '#FACC15');
+          px(-5, 34 + by, 10, 2, '#FACC15');
+          px(5, 35 + by, 4, 2, '#FF9900');
+          px(7, 37 + by, 2, 2, '#FF9900');
+          px(7, 33 + by, 2, 2, '#FF9900');
+        } else if (characterId === 'ellison') {
+          // Red Oracle executive racing jacket with white stripes & chest badge
+          px(-16, 43 + by, 32, 4, '#F8FAFC');
+          px(-6, 45 + by, 12, 3, '#090D16');
+          px(-1, 25 + by, 2, 22, '#090D16');
+          px(-9, 36 + by, 18, 3, '#F8FAFC');
+          px(-7, 37 + by, 14, 1, '#DC2626');
+        } else if (characterId === 'zuckerberg') {
+          // Dark grey Meta tee with cyan infinity loop emblem
+          px(-6, 45 + by, 12, 2, '#1E293B');
+          px(-6, 35 + by, 5, 4, '#38BDF8');
+          px(1, 35 + by, 5, 4, '#38BDF8');
+          px(-1, 36 + by, 2, 2, '#38BDF8');
+          px(-4, 36 + by, 2, 2, '#334155');
+          px(2, 36 + by, 2, 2, '#334155');
+        } else if (characterId === 'musk') {
+          // Futuristic black collar-up jacket with rocket-streak trim
+          px(-9, 46 + by, 18, 5, '#090D16');
+          px(-8, 46 + by, 2, 5, '#38BDF8');
+          px(6, 46 + by, 2, 5, '#38BDF8');
+          px(-10, 33 + by, 4, 2, '#38BDF8');
+          px(-6, 35 + by, 4, 2, '#38BDF8');
+          px(-2, 37 + by, 4, 2, '#38BDF8');
+          px(2, 39 + by, 5, 2, '#F8FAFC');
+        } else if (characterId === 'huang') {
+          // Pitch-black leather jacket with silver zipper lines and collar flaps
+          px(-10, 44 + by, 7, 5, '#1F2937');
+          px(3, 44 + by, 7, 5, '#1F2937');
+          px(-8, 45 + by, 2, 2, '#CBD5E1');
+          px(6, 45 + by, 2, 2, '#CBD5E1');
+          px(1, 25 + by, 2, 21, '#CBD5E1');
+          px(-9, 36 + by, 7, 1, '#CBD5E1');
+          px(-9, 31 + by, 6, 1, '#76B900');
+        } else if (characterId === 'altman') {
+          // Minimalist gray zip-up tech hoodie
+          px(-8, 45 + by, 16, 4, '#475569');
+          px(0, 25 + by, 1, 21, '#CBD5E1');
+          px(-4, 39 + by, 1, 7, '#F8FAFC');
+          px(4, 39 + by, 1, 7, '#F8FAFC');
+          px(5, 36 + by, 4, 4, '#A855F7');
+        } else if (characterId === 'nadella') {
+          // Sharp navy blue enterprise blazer
+          px(-4, 38 + by, 8, 9, '#E0F2FE');
+          px(-6, 40 + by, 3, 7, '#0F172A');
+          px(3, 40 + by, 3, 7, '#0F172A');
+          px(5, 37 + by, 2, 2, '#F97316');
+          px(8, 37 + by, 2, 2, '#84CC16');
+          px(5, 34 + by, 2, 2, '#06B6D4');
+          px(8, 34 + by, 2, 2, '#FACC15');
+        } else if (characterId === 'cook') {
+          // Dark titanium-blue polo
+          px(-7, 45 + by, 14, 3, '#0F172A');
+          px(5, 36 + by, 4, 4, '#E2E8F0');
+          px(6, 40 + by, 2, 1, '#E2E8F0');
+        } else if (characterId === 'pichai') {
+          // Smart-casual multi-accented executive layer
+          px(-7, 45 + by, 14, 3, '#0F172A');
+          px(-10, 36 + by, 5, 3, '#EA4335');
+          px(-5, 36 + by, 5, 3, '#FBBC05');
+          px(0, 36 + by, 5, 3, '#34A853');
+          px(5, 36 + by, 5, 3, '#4285F4');
+        } else if (characterId === 'amodei') {
+          // Structured vest over a dark collar
+          px(-15, 38 + by, 5, 9, '#0C0A09');
+          px(10, 38 + by, 5, 9, '#0C0A09');
+          px(-6, 45 + by, 12, 4, '#0C0A09');
+          px(4, 36 + by, 5, 4, '#D97706');
+        }
+
+        // SUB-BLOCK 4: HEAD, CRANIUM, HAIR & FACIAL EXPRESSIONS
+        const headX = fighterState === 'HIT_RECOIL' ? -3 : 0;
+        const headY = 48 + by;
+
+        px(headX - 5, headY - 2, 10, 5, contender.skinShadow);
+        px(headX - 4, headY - 1, 8, 4, contender.skin);
+
+        px(headX - 10, headY + 2, 21, 18, '#090D16');
+        px(headX - 9, headY + 3, 19, 16, contender.skin);
+        px(headX - 7, headY + 2, 16, 2, contender.skin);
+        px(headX - 8, headY + 18, 17, 2, contender.skin);
+
+        // Ear & Nose
+        px(headX - 11, headY + 8, 3, 6, contender.skin);
+        px(headX - 10, headY + 9, 1, 4, contender.skinShadow);
+        px(headX + 9, headY + 8, 3, 5, contender.skin);
+        px(headX + 8, headY + 7, 3, 1, contender.skinShadow);
+
+        // Character-Specific Hair & Facial Hair
+        if (characterId === 'bezos') {
+          // Bald shiny head with specular highlight pixels
+          px(headX - 6, headY + 16, 6, 3, '#FFFBEB');
+          px(headX - 8, headY + 14, 3, 2, '#FEF08A');
+        } else if (characterId === 'ellison') {
+          // Dark hair with silver temples & trimmed goatee
+          px(headX - 10, headY + 17, 20, 5, contender.hair);
+          px(headX - 11, headY + 11, 4, 7, contender.hair);
+          px(headX - 8, headY + 12, 3, 4, contender.hairSecondary);
+          px(headX + 2, headY + 6, 8, 2, '#374151');
+          px(headX + 1, headY + 2, 9, 3, '#374151');
+        } else if (characterId === 'zuckerberg') {
+          // Short rigid crew cut
+          px(headX - 10, headY + 17, 20, 4, contender.hair);
+          px(headX - 10, headY + 12, 3, 6, contender.hair);
+          px(headX - 4, headY + 16, 14, 2, contender.hairSecondary);
+        } else if (characterId === 'musk') {
+          // Tousled brown hair
+          px(headX - 10, headY + 17, 21, 5, contender.hair);
+          px(headX - 6, headY + 21, 5, 2, contender.hair);
+          px(headX + 2, headY + 21, 6, 2, contender.hairSecondary);
+          px(headX - 10, headY + 11, 4, 7, contender.hair);
+        } else if (characterId === 'huang') {
+          // Flowing dark locks with silver sweep
+          px(headX - 11, headY + 17, 22, 5, contender.hair);
+          px(headX - 12, headY + 4, 5, 14, contender.hair);
+          px(headX - 7, headY + 18, 12, 2, contender.hairSecondary);
+        } else if (characterId === 'altman') {
+          // Neat brown parted hair
+          px(headX - 10, headY + 17, 20, 5, contender.hair);
+          px(headX - 5, headY + 17, 2, 4, contender.skin);
+          px(headX - 10, headY + 12, 3, 6, contender.hair);
+        } else if (characterId === 'nadella') {
+          // Professional styled dark hair
+          px(headX - 10, headY + 11, 4, 7, contender.hair);
+          px(headX - 7, headY + 17, 13, 3, contender.hair);
+          px(headX - 4, headY + 16, 6, 2, '#FFFBEB');
+        } else if (characterId === 'cook') {
+          // Distinguished silver hair
+          px(headX - 10, headY + 17, 21, 5, contender.hair);
+          px(headX - 10, headY + 11, 4, 7, contender.hairSecondary);
+          px(headX + 4, headY + 21, 6, 2, contender.hair);
+        } else if (characterId === 'pichai') {
+          // Neat dark hair & trimmed beard
+          px(headX - 10, headY + 17, 20, 5, contender.hair);
+          px(headX - 10, headY + 10, 4, 8, contender.hair);
+          px(headX - 2, headY + 2, 11, 2, contender.hairSecondary);
+          px(headX + 3, headY + 6, 6, 1, contender.hairSecondary);
+        } else if (characterId === 'amodei') {
+          // Focused researcher hair & beard
+          px(headX - 11, headY + 17, 22, 6, contender.hair);
+          px(headX - 11, headY + 9, 4, 9, contender.hair);
+          px(headX - 3, headY + 2, 12, 3, contender.hair);
+          px(headX + 2, headY + 6, 7, 2, contender.hair);
+        }
+
+        // Dynamic Facial Expressions (IDLE, WIND_UP, STRIKE, HIT_RECOIL)
+        const eyeX = headX + 3;
+        const eyeY = headY + 11;
+
+        if (fighterState === 'HIT_RECOIL') {
+          px(eyeX - 1, eyeY - 1, 5, 5, '#FFFFFF');
+          px(eyeX + 1, eyeY + 1, 2, 2, '#090D16');
+          // Bruised cheek pixels
+          px(headX - 2, headY + 6, 6, 4, '#EF4444');
+          px(headX - 1, headY + 7, 3, 2, '#991B1B');
+          // Open recoil mouth
+          px(headX + 3, headY + 3, 6, 4, '#090D16');
+          px(headX + 4, headY + 5, 4, 1, '#FFFFFF');
+          // Sweat droplets
+          px(headX - 14, headY + 15, 2, 3, '#38BDF8');
+          px(headX - 17, headY + 11, 2, 2, '#E0F2FE');
+          px(headX + 12, headY + 16, 2, 3, '#38BDF8');
+        } else if (fighterState === 'WIND_UP') {
+          px(eyeX, eyeY, 4, 3, '#FFFFFF');
+          px(eyeX + 2, eyeY, 2, 3, '#090D16');
+          px(eyeX - 2, eyeY + 3, 7, 2, '#090D16');
+          px(headX + 3, headY + 4, 6, 2, '#FFFFFF');
+        } else if (fighterState === 'STRIKE') {
+          px(eyeX, eyeY, 4, 3, '#FFFFFF');
+          px(eyeX + 2, eyeY, 2, 3, '#090D16');
+          px(eyeX - 1, eyeY + 3, 6, 2, '#090D16');
+          px(headX + 3, headY + 3, 6, 4, '#090D16');
+          px(headX + 4, headY + 6, 4, 1, '#FFFFFF');
+        } else {
+          // IDLE expressions
+          if (characterId === 'zuckerberg' && state.frameCount % 90 < 6) {
+            // Subtle robotic wink frame
+            px(eyeX, eyeY + 1, 4, 1, '#090D16');
+          } else if (characterId === 'ellison') {
+            // Stern squinted eyes
+            px(eyeX, eyeY + 1, 4, 2, '#FFFFFF');
+            px(eyeX + 2, eyeY + 1, 2, 2, '#090D16');
+            px(eyeX - 1, eyeY + 3, 6, 2, contender.hair);
+          } else {
+            px(eyeX, eyeY, 4, 3, '#FFFFFF');
+            px(eyeX + 2, eyeY, 2, 3, '#090D16');
+            px(eyeX - 1, eyeY + 3, 5, 1, contender.hair);
+          }
+
+          if (characterId === 'bezos' || characterId === 'musk') {
+            // Confident smirk / sarcastic grin
+            px(headX + 2, headY + 4, 5, 1, '#090D16');
+            px(headX + 1, headY + 5, 2, 1, '#090D16');
+          } else if (characterId === 'nadella') {
+            // Warm approachable smile
+            px(headX + 2, headY + 4, 6, 2, '#090D16');
+            px(headX + 3, headY + 5, 4, 1, '#FFFFFF');
+          } else {
+            px(headX + 3, headY + 4, 5, 1, '#090D16');
+          }
+        }
+
+        // Thin-framed glasses pixels
+        if (
+          characterId === 'cook' ||
+          characterId === 'huang' ||
+          characterId === 'nadella' ||
+          characterId === 'pichai' ||
+          characterId === 'amodei'
+        ) {
+          const frameColor = characterId === 'cook' ? '#E2E8F0' : '#94A3B8';
+          px(eyeX - 2, eyeY + 3, 7, 1, frameColor);
+          px(eyeX - 2, eyeY - 1, 7, 1, frameColor);
+          px(eyeX - 2, eyeY - 1, 1, 5, frameColor);
+          px(eyeX + 4, eyeY - 1, 1, 5, frameColor);
+          px(headX - 6, eyeY + 1, 6, 1, frameColor);
+        }
+
+        // SUB-BLOCK 5: FOREGROUND SLAP ARM (5-PIXEL WIND-UP COCK-BACK)
+        const armShiftX =
+          fighterState === 'WIND_UP'
+            ? -5
+            : fighterState === 'STRIKE'
+              ? 18
+              : fighterState === 'HIT_RECOIL'
+                ? -3
+                : 0;
+
+        px(-14 + armShiftX, 34 + by, 10, 10, contender.torsoPrimary);
+        px(-6 + armShiftX, 33 + by, 12, 7, contender.skin);
+        const handX = 5 + armShiftX;
+        const handY = 32 + by;
+        px(handX, handY, 8, 9, contender.skin);
+        px(handX + 4, handY + 1, 5, 7, '#FFFFFF');
+        px(handX + 2, handY + 9, 3, 3, contender.skin);
+
+        if (fighterState === 'STRIKE' && !isFlashingWhite) {
+          ctx.fillStyle = 'rgba(250, 204, 21, 0.55)';
+          ctx.fillRect(-10 * P, -42 * P, 28 * P, 8 * P);
+        }
+
+        ctx.restore();
+      }
+
+      /* ------------------------------------------------------------------------
+         7. ARENA STAGE, JUMBOTRONS, PODIUM & PARTICLES RENDERING
+         ------------------------------------------------------------------------ */
+      function renderArenaBackground(elapsed) {
+        const grad = ctx.createLinearGradient(0, 0, 0, 360);
+        grad.addColorStop(0, '#04060E');
+        grad.addColorStop(0.55, '#0F172A');
+        grad.addColorStop(1, '#090D16');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 640, 360);
+
+        drawPixelRect(0, 0, 640, 14, '#090D16');
+        const trussLights = [75, 165, 255, 385, 475, 565];
+        for (let i = 0; i < trussLights.length; i++) {
+          const lx = trussLights[i];
+          drawPixelRect(lx - 8, 6, 16, 8, '#334155');
+          drawPixelRect(lx - 5, 12, 10, 4, '#FEF08A');
+
+          ctx.save();
+          ctx.globalAlpha = 0.08 + 0.02 * Math.sin(elapsed * 3 + i);
+          ctx.fillStyle = i % 2 === 0 ? '#FACC15' : '#38BDF8';
+          ctx.beginPath();
+          ctx.moveTo(lx - 6, 16);
+          ctx.lineTo(lx + 6, 16);
+          ctx.lineTo(lx + 75, 290);
+          ctx.lineTo(lx - 75, 290);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+
+        const L = CONTENDERS[state.leftIdx];
+        const R = CONTENDERS[state.rightIdx];
+
+        // Left Jumbotron
+        drawPixelRect(22, 34, 176, 68, '#000000');
+        drawPixelRect(24, 36, 172, 64, '#09152E');
+        ctx.strokeStyle = L.accent;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(24, 36, 172, 64);
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '900 22px Impact, "Arial Black", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(L.company, 110, 66);
+
+        ctx.fillStyle = L.accent;
+        ctx.font = '700 9px "Courier New", monospace';
+        ctx.fillText(L.nickname.toUpperCase(), 110, 86);
+
+        // Right Jumbotron
+        drawPixelRect(442, 34, 176, 68, '#000000');
+        drawPixelRect(444, 36, 172, 64, '#2A080C');
+        ctx.strokeStyle = R.accent;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(444, 36, 172, 64);
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '900 22px Impact, "Arial Black", sans-serif';
+        ctx.fillText(R.company, 530, 66);
+
+        ctx.fillStyle = R.accent;
+        ctx.font = '700 9px "Courier New", monospace';
+        ctx.fillText(R.nickname.toUpperCase(), 530, 86);
+
+        // Animated 16-Bit Pixel Crowd Tiers
+        for (let i = 0; i < state.crowd.length; i++) {
+          const c = state.crowd[i];
+          const bounce = Math.round(Math.sin(elapsed * 6 + c.phase) * 2.5);
+          drawPixelRect(c.x, c.y + bounce, 12, 14, c.color);
+          drawPixelRect(c.x + 2, c.y - 7 + bounce, 8, 7, c.skin);
+          if (c.hasSign) {
+            drawPixelRect(c.x - 4, c.y - 22 + bounce, 20, 10, c.signColor);
+          }
+        }
+
+        drawPixelRect(0, 268, 640, 92, '#0B1120');
+        drawPixelRect(0, 268, 640, 5, '#FACC15');
+        for (let sx = 0; sx < 640; sx += 32) {
+          drawPixelRect(sx, 273, 16, 4, '#CA8A04');
+        }
+      }
+
+      function renderCenterSlapPodium() {
+        const px = 320;
+        const py = 282;
+
+        drawPixelRect(px - 56, py - 10, 112, 12, '#090D16');
+        drawPixelRect(px - 48, py - 16, 96, 6, '#334155');
+
+        drawPixelRect(px - 36, py - 98, 72, 82, '#111827');
+        drawPixelRect(px - 26, py - 98, 16, 82, '#1E293B');
+        drawPixelRect(px - 14, py - 98, 6, 82, '#475569');
+        drawPixelRect(px + 12, py - 98, 18, 82, '#090D16');
+
+        drawPixelRect(px - 44, py - 110, 88, 14, '#1E293B');
+        drawPixelRect(px - 42, py - 108, 84, 5, '#64748B');
+        ctx.strokeStyle = '#FACC15';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(px - 44, py - 110, 88, 14);
+      }
+
+      function renderParticlesAndSparks(dt) {
+        for (let i = state.particles.length - 1; i >= 0; i--) {
+          const p = state.particles[i];
+          p.life += dt;
+          if (p.life >= p.maxLife) {
+            state.particles.splice(i, 1);
+            continue;
+          }
+          p.vy += 260 * dt;
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          ctx.fillStyle = p.color;
+          ctx.fillRect(Math.round(p.x), Math.round(p.y), p.size, p.size);
+        }
+
+        for (let i = state.hitSparks.length - 1; i >= 0; i--) {
+          const s = state.hitSparks[i];
+          s.life += dt;
+          if (s.life >= s.maxLife) {
+            state.hitSparks.splice(i, 1);
+            continue;
+          }
+          const prog = s.life / s.maxLife;
+          const rad = s.maxRadius * Math.sin(prog * Math.PI);
+
+          ctx.save();
+          ctx.translate(s.x, s.y);
+          ctx.fillStyle = s.isCrit ? '#F97316' : '#FACC15';
+          ctx.beginPath();
+          const spikes = 12;
+          for (let j = 0; j < spikes * 2; j++) {
+            const r = j % 2 === 0 ? rad : rad * 0.45;
+            const a = (j / (spikes * 2)) * Math.PI * 2;
+            if (j === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+            else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+          }
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = '900 13px Impact, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(s.label, 0, 4);
+          ctx.restore();
+        }
+      }
+
+      /* ------------------------------------------------------------------------
+         8. 60 FPS DELTA-TIME GAME LOOP & A2A AUTONOMOUS CONTROLLER
+         ------------------------------------------------------------------------ */
+      let lastTime = performance.now();
+      let elapsedTotal = 0;
+
+      function gameLoop(now) {
+        const dt = Math.min(0.05, (now - lastTime) / 1000);
+        lastTime = now;
+        elapsedTotal += dt;
+        state.frameCount += 1;
+
+        if (state.phase === 'AIMING') {
+          const speed = state.needleSpeed * state.jitterMultiplier;
+          state.needlePos = 0.5 + 0.46 * Math.sin(elapsedTotal * speed);
+          elTimingNeedle.style.left = (state.needlePos * 100).toFixed(1) + '%';
+
+          const isAITurn = state.a2aAuto || state.striker === 'RIGHT';
+          if (isAITurn) {
+            state.a2aTimer += dt;
+            const activeFighter = state.striker === 'LEFT' ? CONTENDERS[state.leftIdx] : CONTENDERS[state.rightIdx];
+            const targetDelay = state.a2aAuto ? 0.75 : 1.05;
+
+            if (state.a2aTimer >= targetDelay) {
+              state.a2aTimer = 0;
+              const aiSkill = activeFighter.precision / 100;
+              const simulatedPrecision = Math.min(1.0, Math.max(0.45, aiSkill * (0.82 + Math.random() * 0.24)));
+              triggerStrike(simulatedPrecision);
+            }
+          }
+        }
+
+        ctx.save();
+        if (state.shake > 0) {
+          const sx = (Math.random() - 0.5) * state.shake;
+          const sy = (Math.random() - 0.5) * state.shake;
+          ctx.translate(sx, sy);
+          state.shake = Math.max(0, state.shake - 45 * dt);
+        }
+
+        renderArenaBackground(elapsedTotal);
+
+        const L = CONTENDERS[state.leftIdx];
+        const R = CONTENDERS[state.rightIdx];
+
+        if (state.striker === 'LEFT') {
+          drawFighter(ctx, R.id, state.rightState, 430, 272, false);
+          renderCenterSlapPodium();
+          drawFighter(ctx, L.id, state.leftState, 210, 272, true);
+        } else {
+          drawFighter(ctx, L.id, state.leftState, 210, 272, true);
+          renderCenterSlapPodium();
+          drawFighter(ctx, R.id, state.rightState, 430, 272, false);
+        }
+
+        // Decrement 2-frame white impact counters after rendering
+        if (state.leftFlashFrames > 0) state.leftFlashFrames -= 1;
+        if (state.rightFlashFrames > 0) state.rightFlashFrames -= 1;
+
+        renderParticlesAndSparks(dt);
+
+        if (state.screenFlashAlpha > 0) {
+          ctx.fillStyle = state.screenFlashColor;
+          ctx.globalAlpha = state.screenFlashAlpha;
+          ctx.fillRect(0, 0, 640, 360);
+          ctx.globalAlpha = 1;
+          state.screenFlashAlpha = Math.max(0, state.screenFlashAlpha - 2.2 * dt);
+        }
+
+        ctx.restore();
+
+        requestAnimationFrame(gameLoop);
+      }
+
+      /* ------------------------------------------------------------------------
+         9. UI CONTROLS, ROSTER MODAL BUILDER & SINGLE-FILE HTML EXPORT
+         ------------------------------------------------------------------------ */
+      function handleHumanSlap() {
+        if (state.a2aAuto || state.phase !== 'AIMING') return;
+        const distFromCenter = Math.abs(state.needlePos - 0.5);
+        const precision = Math.max(0.25, 1.0 - distFromCenter * 1.75);
+        triggerStrike(precision);
+      }
+
+      function handleHumanBrace() {
+        if (state.a2aAuto || state.phase !== 'AIMING') return;
+        const distFromCenter = Math.abs(state.needlePos - 0.5);
+        const braceQuality = Math.max(0.12, 0.38 - distFromCenter * 0.5);
+        state.braceBuffLeft = braceQuality;
+        sfx.playCriticalChime();
+        showAbilityToast('CHIN BRACED! +' + Math.round(braceQuality * 100) + '% IMPACT ABSORPTION!');
+
+        if (state.striker === 'RIGHT') {
+          const aiFighter = CONTENDERS[state.rightIdx];
+          const aiPrecision = Math.min(1.0, (aiFighter.precision / 100) * (0.78 + Math.random() * 0.25));
+          triggerStrike(aiPrecision);
+        }
+      }
+
+      elBtnSlap.addEventListener('click', handleHumanSlap);
+      elBtnBrace.addEventListener('click', handleHumanBrace);
+      canvas.addEventListener('click', handleHumanSlap);
+
+      window.addEventListener('keydown', function (e) {
+        if (e.code === 'Space') {
+          e.preventDefault();
+          handleHumanSlap();
+        } else if (e.key.toLowerCase() === 'b') {
+          handleHumanBrace();
+        }
+      });
+
+      document.getElementById('leftNameplateBtn').addEventListener('click', function () {
+        state.leftIdx = (state.leftIdx + 1) % CONTENDERS.length;
+        if (state.leftIdx === state.rightIdx) {
+          state.leftIdx = (state.leftIdx + 1) % CONTENDERS.length;
+        }
+        resetMatch();
+      });
+
+      document.getElementById('rightNameplateBtn').addEventListener('click', function () {
+        state.rightIdx = (state.rightIdx + 1) % CONTENDERS.length;
+        if (state.rightIdx === state.leftIdx) {
+          state.rightIdx = (state.rightIdx + 1) % CONTENDERS.length;
+        }
+        resetMatch();
+      });
+
+      document.getElementById('coinBtn').addEventListener('click', function () {
+        state.tokens = Math.min(9, state.tokens + 1);
+        sfx.playCriticalChime();
+        syncHUD();
+      });
+
+      elBtnSfx.addEventListener('click', function () {
+        sfx.enabled = !sfx.enabled;
+        elBtnSfx.textContent = sfx.enabled ? '[SFX TOGGLE]' : '[SFX: OFF]';
+        elBtnSfx.classList.toggle('active-toggle', sfx.enabled);
+      });
+
+      elBtnA2A.addEventListener('click', function () {
+        state.a2aAuto = !state.a2aAuto;
+        state.a2aTimer = 0;
+        elBtnA2A.textContent = state.a2aAuto ? '[A2A AUTO: ON]' : '[A2A AUTO TOGGLE]';
+        elBtnA2A.classList.toggle('active-toggle', state.a2aAuto);
+        elModeSubtitle.textContent = state.a2aAuto
+          ? 'AUTONOMOUS A2A CHAMPIONSHIP SIMULATION'
+          : '16-BIT PIXEL EDITION • BEST OF 3';
+        elCommentary.textContent = state.a2aAuto
+          ? 'A2A AUTONOMOUS MODE ENGAGED • AI AGENTS BATTLING HANDS-FREE!'
+          : 'MANUAL ARCADE CONTROL RESTORED • TAP [SLAP!] ON THE SWEET SPOT!';
+        syncHUD();
+      });
+
+      function renderRosterModal() {
+        elRosterGrid.innerHTML = CONTENDERS.map(function (c, idx) {
+          const isP1 = idx === state.leftIdx;
+          const isP2 = idx === state.rightIdx;
+          return (
+            '<div class="roster-card ' + (isP1 ? 'selected-p1' : '') + ' ' + (isP2 ? 'selected-p2' : '') + '">' +
+              '<div class="roster-card-title">' +
+                '<h3>' + (idx + 1) + '. ' + c.name + '</h3>' +
+                '<span class="roster-company-tag">' + c.company + '</span>' +
+              '</div>' +
+              '<div class="roster-nickname">"' + c.nickname + '"</div>' +
+              '<div class="roster-stats">' +
+                '<span>PWR: ' + c.power + '</span>' +
+                '<span>CHIN: ' + c.chin + '</span>' +
+                '<span>ACC: ' + c.precision + '</span>' +
+              '</div>' +
+              '<div class="roster-ability-box">' +
+                '<strong>' + c.signatureName + ':</strong> ' + c.signatureDesc +
+              '</div>' +
+              '<div class="roster-pick-row">' +
+                '<button type="button" class="pick-btn pick-p1" data-side="LEFT" data-idx="' + idx + '">SET LEFT (P1)</button>' +
+                '<button type="button" class="pick-btn pick-p2" data-side="RIGHT" data-idx="' + idx + '">SET RIGHT (P2)</button>' +
+              '</div>' +
+            '</div>'
+          );
+        }).join('');
+
+        const btns = elRosterGrid.querySelectorAll('.pick-btn');
+        btns.forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            const side = btn.getAttribute('data-side');
+            const idx = parseInt(btn.getAttribute('data-idx'), 10);
+            if (side === 'LEFT') {
+              state.leftIdx = idx;
+              if (state.rightIdx === idx) state.rightIdx = (idx + 1) % CONTENDERS.length;
+            } else {
+              state.rightIdx = idx;
+              if (state.leftIdx === idx) state.leftIdx = (idx + 1) % CONTENDERS.length;
+            }
+            resetMatch();
+            renderRosterModal();
+          });
+        });
+      }
+
+      document.getElementById('btnRoster').addEventListener('click', function () {
+        renderRosterModal();
+        elRosterModal.classList.add('open');
+      });
+
+      document.getElementById('btnCodex').addEventListener('click', function () {
+        renderRosterModal();
+        elRosterModal.classList.add('open');
+      });
+
+      document.getElementById('btnCloseModal').addEventListener('click', function () {
+        elRosterModal.classList.remove('open');
+      });
+
+      document.getElementById('btnDownload').addEventListener('click', function () {
+        const fullHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+        const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'smack-daddy-pixel-edition.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+
+      syncHUD();
+      requestAnimationFrame(gameLoop);
+    })();
+  </script>
+</body>
+</html>

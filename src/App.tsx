@@ -71,14 +71,15 @@ export default function App() {
   const [a2aPaused, setA2aPaused] = useState<boolean>(false);
   const [a2aSpeed, setA2aSpeed] = useState<number>(1);
 
-  // Match & Round Scoring State
+  // Match & Round Scoring State (Best of 3 Rounds)
   const [round, setRound] = useState<number>(1);
-  const maxRounds = 5;
+  const maxRounds = 3;
+  const [arcadeCoins, setArcadeCoins] = useState<number>(3);
   const [roundTimerSeconds, setRoundTimerSeconds] = useState<number>(90);
   const [leftRoundsWon, setLeftRoundsWon] = useState<number>(0);
   const [rightRoundsWon, setRightRoundsWon] = useState<number>(0);
   const [strikerSide, setStrikerSide] = useState<'LEFT' | 'RIGHT'>('LEFT');
-  const [turnPhase, setTurnPhase] = useState<TurnPhase>('PLAYER_STRIKE_PREP');
+  const [turnPhase, setTurnPhase] = useState<TurnPhase>('PLAYER_STRIKE_METER');
 
   // Fighter Condition State
   const [leftHP, setLeftHP] = useState<number>(100);
@@ -288,9 +289,9 @@ export default function App() {
       }
 
       if (activeMode === 'STORY') {
-        setTurnPhase('PLAYER_STRIKE_PREP');
+        setTurnPhase('PLAYER_STRIKE_METER');
         setStatusBanner(
-          `Cheek Alignment vs ${rFighter.name} — Tap Cheek Target & Count to line up palm`
+          `ROUND 1 — Tap "SLAP!" when the needle hits the sweet spot!`
         );
       } else {
         setTurnPhase('A2A_THINKING');
@@ -305,6 +306,7 @@ export default function App() {
   // Oscillating Timing Cursor
   useEffect(() => {
     if (
+      turnPhase !== 'PLAYER_STRIKE_PREP' &&
       turnPhase !== 'PLAYER_STRIKE_METER' &&
       turnPhase !== 'PLAYER_DEFENSE_BRACE' &&
       turnPhase !== 'KO_RECOVERY_MINIGAME'
@@ -316,11 +318,11 @@ export default function App() {
     const startTime = performance.now();
 
     let speedRadPerSec = 4.2;
-    if (turnPhase === 'PLAYER_STRIKE_METER') {
+    if (turnPhase === 'PLAYER_STRIKE_METER' || turnPhase === 'PLAYER_STRIKE_PREP') {
       speedRadPerSec =
-        selectedWindUp === 1 ? 3.5 : selectedWindUp === 2 ? 4.8 : 6.2;
+        selectedWindUp === 1 ? 3.5 : selectedWindUp === 2 ? 4.5 : 5.8;
     } else if (turnPhase === 'PLAYER_DEFENSE_BRACE') {
-      speedRadPerSec = 4.9;
+      speedRadPerSec = 4.6;
     } else if (turnPhase === 'KO_RECOVERY_MINIGAME') {
       const koDef = KO_TYPE_DEFINITIONS[activeKOType];
       speedRadPerSec = koDef.recoveryCursorSpeed;
@@ -337,7 +339,7 @@ export default function App() {
     return () => cancelAnimationFrame(animId);
   }, [turnPhase, selectedWindUp, activeKOType]);
 
-  // Conclude Round
+  // Conclude Round (Best of 3 Rounds)
   const ConcludeRound = useCallback(
     (
       roundWinnerSide: 'LEFT' | 'RIGHT' | 'DRAW',
@@ -353,12 +355,25 @@ export default function App() {
       setLeftRoundsWon(nextLeftWins);
       setRightRoundsWon(nextRightWins);
 
+      if (roundWinnerSide === 'LEFT') {
+        setArcadeCoins((c) => Math.min(9, c + 1));
+      }
+
       if (roundWinnerSide === 'LEFT' || roundWinnerSide === 'RIGHT') {
         sceneControllerRef.current?.triggerVictoryPose(roundWinnerSide);
       }
 
+      const winnerName =
+        roundWinnerSide === 'LEFT'
+          ? leftFighter.name.toUpperCase()
+          : roundWinnerSide === 'RIGHT'
+            ? rightFighter.name.toUpperCase()
+            : 'DRAW';
+
+      setImpactPopupText(`ROUND ${round} WINNER: ${winnerName}!`);
+
       const isFinalKO =
-        nextLeftWins >= 3 || nextRightWins >= 3 || round >= maxRounds;
+        nextLeftWins >= 2 || nextRightWins >= 2 || round >= maxRounds;
 
       if (isFinalKO) {
         let finalWinner: 'LEFT' | 'RIGHT' | 'DRAW' = 'DRAW';
@@ -386,7 +401,7 @@ export default function App() {
 
       setTurnPhase('ROUND_TRANSITION');
       setStatusBanner(
-        `${reasonText} • Preparing Round ${round + 1} of ${maxRounds}`
+        `ROUND ${round} WINNER: ${winnerName}! • Preparing Round ${round + 1} of ${maxRounds}`
       );
 
       setTimeout(() => {
@@ -395,40 +410,27 @@ export default function App() {
         setRoundTimerSeconds(90);
         setLeftKnockdownsThisRound(0);
         setRightKnockdownsThisRound(0);
-        setLeftHP((prev) => Math.min(100, Math.max(48, prev + 28)));
-        setRightHP((prev) => Math.min(100, Math.max(48, prev + 28)));
-        setLeftFatigue((prev) => Math.max(0, prev - 10));
-        setRightFatigue((prev) => Math.max(0, prev - 10));
+        setLeftHP(100);
+        setRightHP(100);
+        setLeftFatigue(0);
+        setRightFatigue(0);
         setPracticeTapCount(0);
         setTorqueCharge(0);
         setDefenseTapBoost(0);
-        setImpactPopupText(null);
+        setImpactPopupText(`ROUND ${nextRoundNum} — FIGHT!`);
+        setTimeout(() => setImpactPopupText(null), 1200);
 
         sceneControllerRef.current?.resetFightersToStance();
         sceneControllerRef.current?.setCameraPreset('BROADCAST_WIDE');
         setCameraPreset('BROADCAST_WIDE');
 
-        const nextStarter: 'LEFT' | 'RIGHT' =
-          nextRoundNum % 2 === 1 ? 'LEFT' : 'RIGHT';
-        setStrikerSide(nextStarter);
+        setStrikerSide('LEFT');
 
         if (gameMode === 'STORY') {
-          if (nextStarter === 'LEFT') {
-            setTurnPhase('PLAYER_STRIKE_PREP');
-            setStatusBanner(
-              `Round ${nextRoundNum} • Tap Cheek Target & Count to align palm`
-            );
-          } else {
-            sceneControllerRef.current?.triggerCheekLineUp(
-              'RIGHT',
-              2,
-              'MID_CHEEK'
-            );
-            setTurnPhase('PLAYER_DEFENSE_BRACE');
-            setStatusBanner(
-              `Round ${nextRoundNum} • ${rightFighter.name} measures your cheek — Brace Chin!`
-            );
-          }
+          setTurnPhase('PLAYER_STRIKE_METER');
+          setStatusBanner(
+            `ROUND ${nextRoundNum} • Tap "SLAP!" on the sweet spot!`
+          );
         } else {
           setTurnPhase('A2A_THINKING');
           setStatusBanner(
@@ -785,11 +787,16 @@ export default function App() {
             setLeftHitsTaken((h) => h + 1);
           }
 
-          if (result.isKO && result.koType !== 'NONE') {
-            const koDef = KO_TYPE_DEFINITIONS[result.koType];
+          const isZeroHP = nextDefenderHP <= 0;
+          const effectiveIsKO = result.isKO || isZeroHP;
+          const effectiveKOType: Exclude<KOType, 'NONE'> =
+            result.koType !== 'NONE' ? result.koType : 'CLEAN_KO';
+
+          if (effectiveIsKO) {
+            const koDef = KO_TYPE_DEFINITIONS[effectiveKOType];
             setIsKOReplayActive(true);
             setStatusBanner(
-              `KO REPLAY • ${koDef.name} • ${result.commentaryLine}`
+              `ROUND KNOCKOUT • ${koDef.name} • ${result.commentaryLine}`
             );
 
             if (defenderSide === 'LEFT') {
@@ -798,37 +805,32 @@ export default function App() {
               setRightKnockdownsThisRound((k) => k + 1);
             }
 
+            // If health bar dropped all the way to 0, award the round win after a brief dramatic pause!
+            if (isZeroHP) {
+              setTimeout(() => {
+                ConcludeRound(
+                  activeStriker,
+                  `${strikerProfile.name} KOs ${defenderProfile.name} in Round ${round}!`,
+                  effectiveKOType
+                );
+              }, 1150 / speedFactor);
+              return;
+            }
+
             setTimeout(() => {
               setDownedSide(defenderSide);
-              setActiveKOType(result.koType as Exclude<KOType, 'NONE'>);
+              setActiveKOType(effectiveKOType);
               setTurnPhase('KO_RECOVERY_MINIGAME');
               setStatusBanner(
                 `${koDef.name} • ${defenderProfile.name} DOWN • 10-Count Active`
               );
-            }, 1550 / speedFactor);
+            }, 1350 / speedFactor);
             return;
           }
 
           setStatusBanner(result.commentaryLine);
 
           setTimeout(() => {
-            if (activeStriker === 'RIGHT') {
-              if (round >= maxRounds) {
-                const roundWinner =
-                  leftHP > nextDefenderHP
-                    ? 'LEFT'
-                    : nextDefenderHP > leftHP
-                      ? 'RIGHT'
-                      : 'DRAW';
-                ConcludeRound(
-                  roundWinner,
-                  `Judges' Decision after ${maxRounds} rounds`,
-                  'NONE'
-                );
-                return;
-              }
-            }
-
             const nextStriker = activeStriker === 'LEFT' ? 'RIGHT' : 'LEFT';
             setStrikerSide(nextStriker);
             setPracticeTapCount(0);
@@ -837,9 +839,9 @@ export default function App() {
 
             if (gameMode === 'STORY') {
               if (nextStriker === 'LEFT') {
-                setTurnPhase('PLAYER_STRIKE_PREP');
+                setTurnPhase('PLAYER_STRIKE_METER');
                 setStatusBanner(
-                  `Cheek Alignment Phase • Tap Cheek Target & Count to line up palm`
+                  `YOUR TURN! Tap "SLAP!" when the needle hits the sweet spot!`
                 );
               } else {
                 sceneControllerRef.current?.triggerCheekLineUp(
@@ -849,15 +851,15 @@ export default function App() {
                 );
                 setTurnPhase('PLAYER_DEFENSE_BRACE');
                 setStatusBanner(
-                  `${rightFighter.name} hovers palm at your cheek • Tap to Brace Chin`
+                  `${rightFighter.name} winds up! Tap "BRACE!" or brace automatically!`
                 );
               }
             } else {
               setTurnPhase('A2A_THINKING');
             }
-          }, 1650 / speedFactor);
+          }, 1100 / speedFactor);
         },
-        windUpCount * beatInterval + 140
+        windUpCount * beatInterval + 120
       );
     },
     [
@@ -884,6 +886,45 @@ export default function App() {
       ConcludeRound,
     ]
   );
+
+  // Auto-advance opponent turn in 1P Arcade mode if player doesn't manually tap BRACE within 1.15s
+  useEffect(() => {
+    if (gameMode !== 'STORY' || turnPhase !== 'PLAYER_DEFENSE_BRACE') return;
+    const autoOpponentTimer = window.setTimeout(() => {
+      const aiDecision = evaluateA2AStrikeDecision(
+        rightFighter,
+        rightEffectiveStats,
+        leftFighter,
+        leftEffectiveStats,
+        rightHP,
+        leftHP,
+        leftHitsTaken,
+        rightSpecialReady,
+        rightMemoryRef.current
+      );
+      executeSlapSequence(
+        'RIGHT',
+        aiDecision.chosenWindUp,
+        aiDecision.chosenAngle,
+        aiDecision.predictedPrecision,
+        0.58,
+        aiDecision.activateSpecial
+      );
+    }, 1150);
+    return () => clearTimeout(autoOpponentTimer);
+  }, [
+    gameMode,
+    turnPhase,
+    rightFighter,
+    rightEffectiveStats,
+    leftFighter,
+    leftEffectiveStats,
+    rightHP,
+    leftHP,
+    leftHitsTaken,
+    rightSpecialReady,
+    executeSlapSequence,
+  ]);
 
   // Autonomous A2A Turn Loop with 30% Fakeout Chance for aggressive fighters
   useEffect(() => {
@@ -937,7 +978,6 @@ export default function App() {
       decision.chosenAngle
     );
 
-    // 30% chance of pre-slap fakeout bluff for aggressive AI fighters
     const shouldFakeout =
       Math.random() < 0.3 &&
       (sFighter.id === 'musk' || sFighter.id === 'ellison' || sFighter.id === 'bezos');
@@ -947,7 +987,6 @@ export default function App() {
         sceneControllerRef.current?.triggerFakeout(activeStriker);
         setImpactPopupText(`FAKEOUT! ${sFighter.name.toUpperCase()} BLUFFS!`);
 
-        // Check if defender flinches (50% chance)
         if (Math.random() < 0.5) {
           const defenderSide = activeStriker === 'LEFT' ? 'RIGHT' : 'LEFT';
           sceneControllerRef.current?.triggerFlinchReaction(defenderSide);
@@ -982,7 +1021,7 @@ export default function App() {
         defenseEval.braceQuality,
         decision.activateSpecial
       );
-    }, (shouldFakeout ? 1650 : 1050) / a2aSpeed);
+    }, (shouldFakeout ? 1450 : 950) / a2aSpeed);
 
     return () => clearTimeout(timer);
   }, [
@@ -1025,28 +1064,11 @@ export default function App() {
     );
   };
 
-  const handleLockCheekLineUp = () => {
-    setPracticeTapCount(0);
-    setTorqueCharge(0.2);
-    soundEngine.playCountBeep(2);
-    sceneControllerRef.current?.triggerCheekLineUp(
-      'LEFT',
-      selectedWindUp,
-      selectedAngle
-    );
-    setTurnPhase('PLAYER_STRIKE_METER');
-    setStatusBanner(
-      'Flinch-Bait & Torque Phase — Tap TORQUE SWING, or TRIGGER FAKEOUT, then UNLEASH SLAP'
-    );
-  };
-
-  // Interactive Player Fakeout Trigger
   const handlePlayerTriggerFakeout = () => {
-    if (turnPhase !== 'PLAYER_STRIKE_METER') return;
+    if (turnPhase !== 'PLAYER_STRIKE_METER' && turnPhase !== 'PLAYER_STRIKE_PREP') return;
     sceneControllerRef.current?.triggerFakeout('LEFT');
     setImpactPopupText('DECOY WIND-UP! TESTING THE AIR!');
 
-    // 55% chance AI opponent flinches!
     if (Math.random() < 0.55) {
       setTimeout(() => {
         sceneControllerRef.current?.triggerFlinchReaction('RIGHT');
@@ -1062,7 +1084,6 @@ export default function App() {
     }
   };
 
-  // Interactive Taunt Trigger (Triggers signature CEO celebration & voice line!)
   const handleTriggerTaunt = () => {
     sceneControllerRef.current?.triggerTaunt(strikerSide);
     const activeProfile = strikerSide === 'LEFT' ? leftFighter : rightFighter;
@@ -1071,7 +1092,7 @@ export default function App() {
   };
 
   const handleTapPracticeSwing = () => {
-    if (turnPhase !== 'PLAYER_STRIKE_METER') return;
+    if (turnPhase !== 'PLAYER_STRIKE_METER' && turnPhase !== 'PLAYER_STRIKE_PREP') return;
     const nextTaps = practiceTapCount + 1;
     const nextTorque = Math.min(1, torqueCharge + 0.18);
     setPracticeTapCount(nextTaps);
@@ -1081,7 +1102,16 @@ export default function App() {
   };
 
   const handlePlayerUnleashSlap = () => {
-    if (turnPhase !== 'PLAYER_STRIKE_METER') return;
+    if (turnPhase === 'PLAYER_DEFENSE_BRACE') {
+      handleTapChinBrace();
+      return;
+    }
+    if (turnPhase === 'KO_RECOVERY_MINIGAME' && downedSide === 'LEFT') {
+      handlePlayerAttemptKORecovery();
+      return;
+    }
+    if (turnPhase !== 'PLAYER_STRIKE_METER' && turnPhase !== 'PLAYER_STRIKE_PREP') return;
+
     const distFromCenter = Math.abs(timingCursor - 0.5);
     const basePrecision = Math.max(0.25, 1.0 - distFromCenter * 1.65);
     const totalPrecisionMeter = Math.min(
@@ -1172,8 +1202,8 @@ export default function App() {
         setStrikerSide('LEFT');
         setPracticeTapCount(0);
         setTorqueCharge(0);
-        setTurnPhase('PLAYER_STRIKE_PREP');
-      }, 1150);
+        setTurnPhase('PLAYER_STRIKE_METER');
+      }, 1050);
     } else {
       soundEngine.playKOBassDrop();
       ConcludeRound(
@@ -1204,7 +1234,7 @@ export default function App() {
     soundEngine.muted = nextMuted;
   };
 
-  // Keyboard shortcuts (H: Toggle HUD Dock, C: Camera, T: Taunt, F: Fakeout, Space: Action)
+  // Keyboard shortcuts (Space: SLAP!, H: Toggle Dock, C: Zoom, T: Taunt, F: Fakeout)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (isCodexOpen || isPhysicsModalOpen) return;
@@ -1215,17 +1245,12 @@ export default function App() {
         handleCycleCamera();
       } else if (key === 't') {
         handleTriggerTaunt();
-      } else if (key === 'f' && gameMode === 'STORY' && turnPhase === 'PLAYER_STRIKE_METER') {
+      } else if (key === 'f' && gameMode === 'STORY') {
         handlePlayerTriggerFakeout();
       } else if (e.code === 'Space') {
         e.preventDefault();
         if (gameMode === 'STORY') {
-          if (turnPhase === 'PLAYER_STRIKE_PREP') handleLockCheekLineUp();
-          else if (turnPhase === 'PLAYER_STRIKE_METER') handlePlayerUnleashSlap();
-          else if (turnPhase === 'PLAYER_DEFENSE_BRACE') handleTapChinBrace();
-          else if (turnPhase === 'KO_RECOVERY_MINIGAME' && downedSide === 'LEFT') {
-            handlePlayerAttemptKORecovery();
-          }
+          handlePlayerUnleashSlap();
         }
       }
     };
@@ -1233,291 +1258,231 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   });
 
-  const activeKODef = KO_TYPE_DEFINITIONS[activeKOType];
-  const globalSlapForceValue = lastSlapResult
-    ? Math.round(lastSlapResult.slapForce)
-    : Math.round(85 + torqueCharge * 95);
-  const koProximityDanger =
-    leftHP <= 42 ||
-    rightHP <= 42 ||
-    (lastSlapResult && lastSlapResult.overkillRatio >= 0.85);
-
-  const formattedTimer = `${Math.floor(roundTimerSeconds / 60)}:${String(
-    roundTimerSeconds % 60
-  ).padStart(2, '0')}`;
+  const leftShortName =
+    leftFighter.id === 'bezos'
+      ? 'BEZOS'
+      : leftFighter.name.split(' ').slice(-1)[0].toUpperCase();
+  const rightShortName =
+    rightFighter.id === 'ellison'
+      ? 'ELLISON'
+      : rightFighter.name.split(' ').slice(-1)[0].toUpperCase();
 
   return (
     <div
-      className={`w-screen h-[100dvh] flex flex-col justify-between overflow-hidden bg-[#050811] select-none font-sans transition-transform duration-150 ${
+      className={`w-screen h-[100dvh] flex flex-col justify-between overflow-hidden bg-[#05070E] select-none font-sans transition-transform duration-150 ${
         hudShake ? 'translate-x-1 -translate-y-1' : ''
       }`}
     >
       {/* ===================================================================== */}
-      {/* 1. TOP HEADER & SCOREBOARD (Strictly flex-none, max 18% height)        */}
+      {/* 1. TOP ARCADE HUD: BEZOS (YELLOW BAR + COINS) | GOLD MARQUEE | ELLISON (RED BAR + GEAR) */}
       {/* ===================================================================== */}
-      <header
-        className={`flex-none max-h-[20vh] w-full z-20 transition-opacity duration-300 pointer-events-auto ${
-          isKOReplayActive ? 'opacity-40' : 'opacity-100'
-        }`}
-      >
-        {/* Banner with metallic gold brand & control links */}
-        <div className="w-full bg-gradient-to-r from-[#040710]/95 via-[#0F172A]/90 to-[#040710]/95 border-b border-[#D4AF37]/50 px-3 sm:px-6 py-1.5 flex flex-wrap items-center justify-between gap-1 shadow-[0_4px_20px_rgba(212,175,55,0.18)]">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <h1 className="font-display text-xs sm:text-xl tracking-[0.14em] uppercase font-extrabold bg-gradient-to-b from-[#FFF3B0] via-[#D4AF37] to-[#9A7418] bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(212,175,55,0.55)] whitespace-nowrap shrink-0">
-              SMACK DADDY CHAMPIONSHIPS
-            </h1>
-            <span className="hidden md:inline font-mono text-[9px] tracking-[0.2em] uppercase text-[#FFF3B0]/80 whitespace-nowrap shrink-0">
-              BATTLE OF THE TITANS
-            </span>
+      <header className="flex-none w-full z-20 bg-[#070B16] border-b-2 border-[#FACC15]/70 px-2.5 sm:px-5 py-2 shadow-[0_4px_0_#000]">
+        <div className="max-w-[1440px] mx-auto grid grid-cols-12 items-start gap-2 sm:gap-4">
+          {/* TOP LEFT: Yellow Health Bar + BEZOS Nameplate + Golden Coin Counters */}
+          <div className="col-span-4 sm:col-span-4 flex flex-col gap-1">
+            <div className="flex items-center justify-between gap-1">
+              <span className="font-display text-sm sm:text-xl font-black uppercase tracking-wider text-[#FACC15] drop-shadow-[2px_2px_0_#000] truncate">
+                {leftShortName}
+              </span>
+              <span className="font-mono text-[10px] sm:text-xs font-bold text-slate-200 tabular-nums shrink-0">
+                {leftHP}/100 HP
+              </span>
+            </div>
+
+            {/* Yellow 16-Bit Pixel Health Bar */}
+            <div className="w-full h-4 sm:h-6 bg-[#090D16] border-2 border-white p-0.5 shadow-[3px_3px_0_#000]">
+              <div
+                className="h-full bg-gradient-to-b from-[#FEF08A] via-[#FACC15] to-[#CA8A04] transition-all duration-150"
+                style={{ width: `${Math.max(0, leftHP)}%` }}
+              />
+            </div>
+
+            {/* Golden Arcade Coin Counters & Best-of-3 Round Pips Underneath */}
+            <div className="flex flex-wrap items-center justify-between gap-1.5 mt-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setArcadeCoins((c) => Math.min(9, c + 1));
+                  soundEngine.playCountBeep(3);
+                }}
+                title="Insert Arcade Coin"
+                className="flex items-center gap-1 bg-[#090D16] border border-[#FACC15] px-1.5 py-0.5 shadow-[2px_2px_0_#000] cursor-pointer active:translate-y-0.5"
+              >
+                <span className="inline-block w-3 h-3 bg-[#FACC15] border border-[#FEF08A] shadow-[inset_-1px_-1px_0_#B45309]" />
+                <span className="inline-block w-3 h-3 bg-[#FACC15] border border-[#FEF08A] shadow-[inset_-1px_-1px_0_#B45309]" />
+                <span className="inline-block w-3 h-3 bg-[#FACC15] border border-[#FEF08A] shadow-[inset_-1px_-1px_0_#B45309]" />
+                <span className="font-mono text-[10px] sm:text-xs font-extrabold text-[#FEF08A] tabular-nums ml-0.5">
+                  x0{arcadeCoins}
+                </span>
+              </button>
+
+              <div className="flex items-center gap-1" title="Rounds Won (Best of 3)">
+                {[0, 1].map((pipIdx) => (
+                  <span
+                    key={pipIdx}
+                    className={`w-3 h-3 border ${
+                      leftRoundsWon > pipIdx
+                        ? 'bg-[#22C55E] border-[#BBF7D0] shadow-[0_0_6px_#22C55E]'
+                        : 'bg-[#1E293B] border-slate-400'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
 
-          <nav className="flex items-center gap-1.5 sm:gap-3 text-[10px] sm:text-xs font-mono uppercase tracking-wider">
+          {/* TOP CENTER: Gold Retro Arcade Banner "SMACK DADDY CHAMPIONSHIPS" */}
+          <div className="col-span-4 sm:col-span-4 flex flex-col items-center justify-center text-center">
+            <div className="w-full bg-gradient-to-b from-[#422006] to-[#1C1917] border-2 border-[#FACC15] px-2 py-1 sm:py-1.5 shadow-[0_4px_0_#000,0_0_16px_rgba(250,204,21,0.35)]">
+              <h1 className="font-display text-[11px] sm:text-lg md:text-xl font-black uppercase tracking-wider text-[#FEF08A] drop-shadow-[2px_2px_0_#000] leading-tight">
+                SMACK DADDY CHAMPIONSHIPS
+              </h1>
+              <div className="flex items-center justify-center gap-2 mt-0.5 text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-[#F59E0B]">
+                <span>16-BIT PIXEL EDITION</span>
+                <span className="hidden md:inline">·</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextMode = gameMode === 'STORY' ? 'A2A' : 'STORY';
+                    setGameMode(nextMode);
+                    resetMatch(nextMode, storyChapter);
+                  }}
+                  className="hidden md:inline underline text-[#38BDF8] hover:text-white cursor-pointer"
+                >
+                  {gameMode === 'STORY' ? '1P Arcade' : 'A2A Auto'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* TOP RIGHT: Red Health Bar + ELLISON Nameplate + Persistent Top Nav Bar */}
+          <div className="col-span-4 sm:col-span-4 flex flex-col items-end gap-1">
+            <div className="flex items-center justify-between w-full gap-1">
+              <span className="font-mono text-[10px] sm:text-xs font-bold text-slate-200 tabular-nums shrink-0">
+                {rightHP}/100 HP
+              </span>
+              <span className="font-display text-sm sm:text-xl font-black uppercase tracking-wider text-[#F87171] drop-shadow-[2px_2px_0_#000] truncate">
+                {rightShortName}
+              </span>
+            </div>
+
+            {/* Red 16-Bit Pixel Health Bar */}
+            <div className="w-full h-4 sm:h-6 bg-[#090D16] border-2 border-white p-0.5 shadow-[3px_3px_0_#000] flex justify-end">
+              <div
+                className="h-full bg-gradient-to-b from-[#FCA5A5] via-[#EF4444] to-[#991B1B] transition-all duration-150"
+                style={{ width: `${Math.max(0, rightHP)}%` }}
+              />
+            </div>
+
+            {/* Round Win Pips & Quick Status */}
+            <div className="flex flex-wrap items-center justify-between w-full gap-1.5 mt-0.5">
+              <div className="flex items-center gap-1" title="Rounds Won (Best of 3)">
+                {[0, 1].map((pipIdx) => (
+                  <span
+                    key={pipIdx}
+                    className={`w-3 h-3 border ${
+                      rightRoundsWon > pipIdx
+                        ? 'bg-[#EF4444] border-[#FECACA] shadow-[0_0_6px_#EF4444]'
+                        : 'bg-[#1E293B] border-slate-400'
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className="font-mono text-[9px] sm:text-[10px] text-[#FCA5A5] uppercase truncate">
+                {rightFighter.specialName}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Persistent Top Control Bar: [ROSTER] [SFX TOGGLE] [A2A AUTO TOGGLE] [CODEX] [DOWNLOAD 1-FILE HTML] */}
+        <div className="max-w-[1440px] mx-auto mt-1.5 pt-1.5 border-t border-slate-800/90 flex flex-wrap items-center justify-between gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
-              onClick={() => {
-                setGameMode('STORY');
-                resetMatch('STORY', storyChapter);
-              }}
-              className={`min-h-[30px] px-2 cursor-pointer transition-all whitespace-nowrap shrink-0 ${
-                gameMode === 'STORY'
-                  ? 'text-[#FFF3B0] font-bold border-b-2 border-[#D4AF37]'
-                  : 'text-[#94A3B8] hover:text-white'
-              }`}
-            >
-              1P Story
-            </button>
-            <button
-              onClick={() => {
-                setGameMode('A2A');
-                resetMatch('A2A', storyChapter);
-              }}
-              className={`min-h-[30px] px-2 cursor-pointer transition-all whitespace-nowrap shrink-0 ${
-                gameMode === 'A2A'
-                  ? 'text-[#00F0FF] font-bold border-b-2 border-[#00F0FF]'
-                  : 'text-[#94A3B8] hover:text-white'
-              }`}
-            >
-              A2A Auto
-            </button>
-            <button
+              type="button"
               onClick={() => setShowContenderStrip((v) => !v)}
-              className={`min-h-[30px] px-2 cursor-pointer transition-all whitespace-nowrap shrink-0 ${
-                showContenderStrip
-                  ? 'text-[#D4AF37] font-bold border-b-2 border-[#D4AF37]'
-                  : 'text-[#E2E8F0] hover:text-[#FFF3B0]'
+              className="bg-[#0F172A] border border-[#38BDF8] px-2 py-0.5 font-mono text-[10px] sm:text-xs font-bold text-[#38BDF8] hover:bg-[#1E293B] hover:text-white shadow-[2px_2px_0_#000] cursor-pointer uppercase"
+            >
+              [ROSTER]
+            </button>
+            <button
+              type="button"
+              onClick={handleToggleMute}
+              className="bg-[#0F172A] border border-[#FACC15] px-2 py-0.5 font-mono text-[10px] sm:text-xs font-bold text-[#FACC15] hover:bg-[#1E293B] hover:text-white shadow-[2px_2px_0_#000] cursor-pointer uppercase"
+            >
+              [{isMuted ? 'SFX: OFF' : 'SFX TOGGLE'}]
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const nextMode = gameMode === 'STORY' ? 'A2A' : 'STORY';
+                setGameMode(nextMode);
+                resetMatch(nextMode, storyChapter);
+              }}
+              className={`border px-2 py-0.5 font-mono text-[10px] sm:text-xs font-bold shadow-[2px_2px_0_#000] cursor-pointer uppercase ${
+                gameMode === 'A2A'
+                  ? 'bg-[#065F46] border-[#34D399] text-[#A7F3D0]'
+                  : 'bg-[#0F172A] border-[#A855F7] text-[#D8B4FE] hover:text-white'
               }`}
             >
-              Titans
+              [{gameMode === 'A2A' ? 'A2A AUTO: ON' : 'A2A AUTO TOGGLE'}]
             </button>
             <button
+              type="button"
               onClick={() => setIsCodexOpen(true)}
-              className="min-h-[30px] px-1 text-[#94A3B8] hover:text-[#FFF3B0] cursor-pointer whitespace-nowrap shrink-0"
+              className="bg-[#0F172A] border border-amber-400 px-2 py-0.5 font-mono text-[10px] sm:text-xs font-bold text-amber-300 hover:bg-[#1E293B] hover:text-white shadow-[2px_2px_0_#000] cursor-pointer uppercase"
             >
-              Roster
+              [CODEX]
             </button>
-            <button
-              onClick={() => setIsPhysicsModalOpen(true)}
-              className="min-h-[30px] px-1 text-[#94A3B8] hover:text-[#00F0FF] cursor-pointer whitespace-nowrap shrink-0"
-            >
-              KO Spec
-            </button>
-            <button
-              onClick={handleCycleCamera}
-              className="min-h-[30px] px-1 text-[#94A3B8] hover:text-[#D4AF37] cursor-pointer whitespace-nowrap shrink-0"
-            >
-              Cam
-            </button>
-            <button
-              onClick={handleToggleMute}
-              className="min-h-[30px] px-1 text-[#94A3B8] hover:text-white cursor-pointer whitespace-nowrap shrink-0"
-            >
-              {isMuted ? 'Muted' : 'Audio'}
-            </button>
-          </nav>
-        </div>
-
-        {/* Compact Scoreboard Strip */}
-        <div className="w-full bg-[#070C18]/92 border-b border-[#00F0FF]/25 shadow-md px-3 sm:px-6 py-1.5">
-          <div className="max-w-[1500px] mx-auto grid grid-cols-12 items-center gap-2">
-            {/* Left Fighter */}
-            <div className="col-span-5 flex items-center gap-2 min-w-0">
-              <div className="relative w-10 h-10 sm:w-11 sm:h-11 shrink-0 flex items-center justify-center">
-                <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 56 56">
-                  <circle cx="28" cy="28" r="25" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="3.5" />
-                  <circle
-                    cx="28"
-                    cy="28"
-                    r="25"
-                    fill="none"
-                    stroke={leftHP > 55 ? '#00F0FF' : leftHP > 28 ? '#F59E0B' : '#EF4444'}
-                    strokeWidth="3.5"
-                    strokeDasharray={`${(leftHP / 100) * 157} 157`}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden bg-[#0F172A] flex items-center justify-center">
-                  {!failedPortraits[leftFighter.id] ? (
-                    <img
-                      src={leftFighter.imageUrl}
-                      alt={leftFighter.name}
-                      referrerPolicy="no-referrer"
-                      onError={() =>
-                        setFailedPortraits((prev) => ({
-                          ...prev,
-                          [leftFighter.id]: true,
-                        }))
-                      }
-                      className="w-full h-full object-cover object-top"
-                    />
-                  ) : (
-                    <span className="font-display font-bold text-[10px] text-[#00F0FF]">
-                      {leftFighter.company.slice(0, 3).toUpperCase()}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="min-w-0 flex-1 leading-tight">
-                <div className="flex items-baseline gap-1.5 truncate">
-                  <span className="font-display text-xs sm:text-base font-extrabold uppercase text-[#00F0FF] truncate">
-                    {leftFighter.name}
-                  </span>
-                  <span className="hidden sm:inline font-mono text-[9px] text-slate-400 shrink-0">
-                    · {leftFighter.company}
-                  </span>
-                  {strikerSide === 'LEFT' && (
-                    <span className="font-mono text-[9px] uppercase text-[#FFF3B0] font-bold shrink-0">
-                      · SLAPPING
-                    </span>
-                  )}
-                </div>
-                <p className="font-mono text-[9px] sm:text-[10px] text-[#CBD5E1] tabular-nums truncate">
-                  Chin <strong className="text-[#00F0FF]">{leftHP}%</strong> · Pwr {leftEffectiveStats.power} · KO Res {leftEffectiveStats.koResistance}
-                </p>
-              </div>
-            </div>
-
-            {/* Center Match Status */}
-            <div className="col-span-2 flex flex-col items-center justify-center text-center">
-              <div className="font-display text-[11px] sm:text-sm font-extrabold uppercase tracking-widest text-[#FFF3B0] tabular-nums">
-                R{round} ({leftRoundsWon}–{rightRoundsWon})
-              </div>
-              <div className="font-mono text-[8px] sm:text-[10px] text-[#00F0FF] tabular-nums">
-                {globalSlapForceValue} N · {crowdHypePercent}% Hype
-              </div>
-            </div>
-
-            {/* Right Fighter */}
-            <div className="col-span-5 flex items-center justify-end gap-2 min-w-0">
-              <div className="min-w-0 flex-1 text-right leading-tight">
-                <div className="flex items-baseline justify-end gap-1.5 truncate">
-                  {strikerSide === 'RIGHT' && (
-                    <span className="font-mono text-[9px] uppercase text-[#FFF3B0] font-bold shrink-0">
-                      SLAPPING ·
-                    </span>
-                  )}
-                  <span className="hidden sm:inline font-mono text-[9px] text-slate-400 shrink-0">
-                    {rightFighter.company} ·
-                  </span>
-                  <span className="font-display text-xs sm:text-base font-extrabold uppercase text-[#D4AF37] truncate">
-                    {rightFighter.name}
-                  </span>
-                </div>
-                <p className="font-mono text-[9px] sm:text-[10px] text-[#CBD5E1] tabular-nums truncate">
-                  Chin <strong className="text-[#D4AF37]">{rightHP}%</strong> · Pwr {rightEffectiveStats.power} · KO Res {rightEffectiveStats.koResistance}
-                </p>
-              </div>
-              <div className="relative w-10 h-10 sm:w-11 sm:h-11 shrink-0 flex items-center justify-center">
-                <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 56 56">
-                  <circle cx="28" cy="28" r="25" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="3.5" />
-                  <circle
-                    cx="28"
-                    cy="28"
-                    r="25"
-                    fill="none"
-                    stroke={rightHP > 55 ? '#D4AF37' : rightHP > 28 ? '#F59E0B' : '#EF4444'}
-                    strokeWidth="3.5"
-                    strokeDasharray={`${(rightHP / 100) * 157} 157`}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden bg-[#0F172A] flex items-center justify-center">
-                  {!failedPortraits[rightFighter.id] ? (
-                    <img
-                      src={rightFighter.imageUrl}
-                      alt={rightFighter.name}
-                      referrerPolicy="no-referrer"
-                      onError={() =>
-                        setFailedPortraits((prev) => ({
-                          ...prev,
-                          [rightFighter.id]: true,
-                        }))
-                      }
-                      className="w-full h-full object-cover object-top"
-                    />
-                  ) : (
-                    <span className="font-display font-bold text-[10px] text-[#D4AF37]">
-                      {rightFighter.company.slice(0, 3).toUpperCase()}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
           </div>
+
+          <a
+            href="/smack-daddy-pixel-edition.html"
+            download="smack-daddy-pixel-edition.html"
+            className="bg-[#166534] border border-[#4ADE80] px-2.5 py-0.5 font-mono text-[10px] sm:text-xs font-bold text-white hover:bg-[#15803D] shadow-[2px_2px_0_#000] uppercase"
+          >
+            [DOWNLOAD 1-FILE HTML]
+          </a>
         </div>
 
-        {/* Collapsible 10 Titans Quick Select Strip */}
+        {/* Collapsible 10-Titan Selector Strip */}
         {showContenderStrip && (
-          <div className="w-full bg-[#070B14]/95 border-b border-[#D4AF37]/40 px-3 py-1.5 flex items-center gap-3 overflow-x-auto">
+          <div className="max-w-[1440px] mx-auto mt-1.5 pt-1.5 border-t border-slate-800 flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-mono">
             {FIGHTERS.map((f) => {
-              const isLeft = (gameMode === 'STORY' && playerFighterId === f.id) || (gameMode === 'A2A' && a2aLeftId === f.id);
-              const isRight = (gameMode === 'STORY' && storyChapter === f.storyChapter) || (gameMode === 'A2A' && a2aRightId === f.id);
+              const isSelectedLeft = leftFighter.id === f.id;
+              const isSelectedRight = rightFighter.id === f.id;
               return (
-                <div key={f.id} className="shrink-0 flex items-center gap-1.5 pr-2 border-r border-white/10">
-                  <div className="w-7 h-7 rounded-full overflow-hidden bg-slate-900 border border-[#D4AF37]/50 flex items-center justify-center shrink-0">
-                    {!failedPortraits[f.id] ? (
-                      <img
-                        src={f.imageUrl}
-                        alt={f.name}
-                        referrerPolicy="no-referrer"
-                        onError={() =>
-                          setFailedPortraits((prev) => ({
-                            ...prev,
-                            [f.id]: true,
-                          }))
-                        }
-                        className="w-full h-full object-cover object-top"
-                      />
-                    ) : (
-                      <span className="font-display text-[8px] font-bold text-amber-400">
-                        {f.company.slice(0, 2).toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-col text-[9px] font-mono">
-                    <span className="font-display text-[10px] font-bold uppercase text-white truncate max-w-[70px]">{f.name}</span>
-                    <div className="flex gap-1.5">
-                      <button
-                        onClick={() => {
-                          if (gameMode === 'STORY') setPlayerFighterId(f.id);
-                          else setA2aLeftId(f.id);
-                          setTimeout(() => resetMatch(), 20);
-                        }}
-                        className={`cursor-pointer ${isLeft ? 'text-[#00F0FF] font-bold' : 'text-[#94A3B8] hover:text-white'}`}
-                      >
-                        P1
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (gameMode === 'STORY') setStoryChapter(f.storyChapter);
-                          else setA2aRightId(f.id);
-                          setTimeout(() => resetMatch(gameMode, f.storyChapter), 20);
-                        }}
-                        className={`cursor-pointer ${isRight ? 'text-[#D4AF37] font-bold' : 'text-[#94A3B8] hover:text-white'}`}
-                      >
-                        P2
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => {
+                    if (gameMode === 'STORY') {
+                      setPlayerFighterId(f.id);
+                    } else {
+                      setA2aLeftId(f.id);
+                    }
+                    setTimeout(() => resetMatch(), 20);
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    if (gameMode === 'STORY') {
+                      setStoryChapter(f.storyChapter);
+                      setTimeout(() => resetMatch('STORY', f.storyChapter), 20);
+                    } else {
+                      setA2aRightId(f.id);
+                      setTimeout(() => resetMatch('A2A', storyChapter), 20);
+                    }
+                  }}
+                  className={`px-2 py-1 border text-[10px] uppercase font-bold whitespace-nowrap cursor-pointer ${
+                    isSelectedLeft
+                      ? 'bg-[#1D4ED8] border-[#FACC15] text-[#FEF08A]'
+                      : isSelectedRight
+                        ? 'bg-[#991B1B] border-[#F87171] text-white'
+                        : 'bg-[#0F172A] border-slate-700 text-slate-300 hover:text-white'
+                  }`}
+                >
+                  {f.name.split(' ').slice(-1)[0]} ({f.specialName})
+                </button>
               );
             })}
           </div>
@@ -1525,319 +1490,196 @@ export default function App() {
       </header>
 
       {/* ===================================================================== */}
-      {/* 2. MIDDLE 3D ARENA CANVAS (Strictly flex-1, ~58% height, zero overlap) */}
+      {/* 2. MIDDLE 2D 16-BIT PIXEL ARENA STAGE (Jumbotrons + Podium + Sprites)  */}
       {/* ===================================================================== */}
-      <main className="flex-1 relative w-full min-h-0 overflow-hidden z-10">
-        {/* Full canvas container */}
+      <main className="flex-1 relative w-full min-h-0 overflow-hidden z-10 bg-[#05070E]">
+        {/* 2D Pixel-Art Canvas Container */}
         <div
           ref={canvasContainerRef}
-          className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing"
-          title="Drag horizontally or vertically to inspect the 3D volumetric Tech Titans"
+          onClick={() => {
+            if (gameMode === 'STORY') {
+              handlePlayerUnleashSlap();
+            }
+          }}
+          className="absolute inset-0 w-full h-full cursor-pointer"
+          title="Tap or click to SLAP!"
         />
 
-        {/* Dedicated Top-of-Canvas Toast Callout Strip (No backdrop-blur over WebGL, never overlaps faces) */}
+        {/* Top-of-Canvas Pixel Callout Toast */}
         {impactPopupText && (
-          <div className="absolute top-2 inset-x-0 z-30 flex justify-center pointer-events-none px-4">
-            <div className="font-display text-[clamp(0.95rem,3.2vw,1.35rem)] font-extrabold uppercase tracking-wide bg-gradient-to-r from-[#FFF3B0] via-[#F59E0B] to-[#EF4444] bg-clip-text text-transparent drop-shadow-[0_2px_12px_rgba(245,158,11,0.85)] text-center px-3.5 py-1 bg-[#050811]/95 rounded-lg border border-[#D4AF37]/45">
+          <div className="absolute top-2.5 inset-x-0 z-30 flex justify-center pointer-events-none px-4">
+            <div className="font-display text-sm sm:text-xl font-black uppercase tracking-wider text-[#FEF08A] bg-[#090D16]/95 border-2 border-[#FACC15] px-4 py-1 shadow-[4px_4px_0_#000]">
               {impactPopupText}
             </div>
           </div>
         )}
 
-        {/* Collapsible Cinema / Zen Mode Toggle Button pinned to bottom-center edge of 3D stage */}
-        <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
-          <button
-            onClick={() => setIsDockCollapsed((prev) => !prev)}
-            className="px-3 py-0.5 text-[10px] font-mono uppercase tracking-wider text-slate-300 hover:text-amber-300 bg-[#050811]/90 border border-slate-700/80 rounded-md transition-colors cursor-pointer whitespace-nowrap"
-          >
-            {isDockCollapsed ? '▴ Show Controls (H)' : '▾ Hide Controls (H)'}
-          </button>
-        </div>
+        {/* ROUND WINNER / MATCH VICTORY ARCADE OVERLAY */}
+        {(turnPhase === 'ROUND_TRANSITION' || turnPhase === 'MATCH_OVER') && (
+          <div className="absolute inset-0 z-30 bg-[#05070E]/80 flex items-center justify-center p-4">
+            <div className="bg-[#0F172A] border-4 border-[#FACC15] shadow-[8px_8px_0_#000] p-5 sm:p-7 max-w-md w-full text-center">
+              <div className="font-mono text-xs uppercase tracking-widest text-[#38BDF8] mb-1">
+                {turnPhase === 'MATCH_OVER'
+                  ? 'SMACK DADDY CHAMPIONSHIP RESULT'
+                  : `END OF ROUND ${round} (BEST OF 3)`}
+              </div>
+              <h2 className="font-display text-xl sm:text-3xl font-black uppercase tracking-wider text-[#FEF08A] drop-shadow-[3px_3px_0_#000] mb-2">
+                {turnPhase === 'MATCH_OVER'
+                  ? matchWinner === 'LEFT'
+                    ? `${leftFighter.name} WINS THE BELT!`
+                    : `${rightFighter.name} WINS THE BELT!`
+                  : 'ROUND WINNER!'}
+              </h2>
+              <p className="font-mono text-xs sm:text-sm text-slate-300 mb-5">
+                {statusBanner}
+              </p>
+
+              {turnPhase === 'MATCH_OVER' && (
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => resetMatch()}
+                    className="min-h-[46px] px-6 bg-gradient-to-b from-[#FACC15] to-[#CA8A04] border-2 border-white text-[#090D16] font-display text-sm sm:text-base font-black uppercase tracking-wider shadow-[4px_4px_0_#000] cursor-pointer active:translate-y-0.5"
+                  >
+                    PLAY REMATCH
+                  </button>
+                  {gameMode === 'STORY' && matchWinner === 'LEFT' && storyChapter < 10 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextChap = storyChapter + 1;
+                        setStoryChapter(nextChap);
+                        resetMatch('STORY', nextChap);
+                      }}
+                      className="min-h-[46px] px-5 bg-[#1D4ED8] border-2 border-[#38BDF8] text-white font-display text-sm sm:text-base font-black uppercase tracking-wider shadow-[4px_4px_0_#000] cursor-pointer"
+                    >
+                      NEXT RIVAL (CH. {storyChapter + 1})
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </main>
 
       {/* ===================================================================== */}
-      {/* 3. BOTTOM CONTROL DECK (Strictly flex-none, collapsible Zen drawer)   */}
+      {/* 3. BOTTOM ACTION HUB: Active Nameplates + Sweet-Spot Bar + [SLAP!] & [BRACE!] */}
       {/* ===================================================================== */}
-      {!isDockCollapsed && (
-        <footer className="flex-none max-h-[28vh] w-full z-20 bg-gradient-to-r from-[#060A14]/95 via-[#0E172A]/92 to-[#060A14]/95 border-t border-[#D4AF37]/45 shadow-[0_-8px_32px_rgba(0,0,0,0.7)] px-3 sm:px-6 py-2 pointer-events-auto">
-          <div className="max-w-[1500px] mx-auto flex flex-col items-center gap-1.5">
-            {/* Status Sub-Header & Shockwave / Timer Status */}
-            <div className="flex flex-wrap items-center justify-center gap-2 font-mono text-[10px] sm:text-[11px] tracking-wide">
-              <span
-                className={
-                  koProximityDanger
-                    ? 'text-[#EF4444] font-bold drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]'
-                    : 'text-[#FFF3B0]'
-                }
-              >
-                KO Shockwave: {koProximityDanger ? 'CRITICAL THRESHOLD' : 'ARMED'}
+      <footer className="flex-none w-full z-20 bg-[#070B16] border-t-2 border-[#FACC15]/80 px-3 sm:px-6 py-2 shadow-[0_-4px_0_#000]">
+        <div className="max-w-[1440px] mx-auto flex flex-col gap-1.5">
+          {/* Sliding Torque / Sweet-Spot Timing Bar */}
+          <div className="w-full max-w-xl mx-auto flex flex-col gap-1">
+            <div className="flex items-center justify-between text-[10px] sm:text-xs font-mono uppercase tracking-wider">
+              <span className="text-[#FEF08A] font-bold truncate">
+                TAP WHEN THE NEEDLE HITS THE SWEET SPOT
               </span>
-              <span className="text-white/25">·</span>
-              <span className="text-[#00F0FF] tabular-nums">Timer {formattedTimer}</span>
-              <span className="text-white/25">·</span>
-              <span className="text-[#CBD5E1] truncate max-w-sm sm:max-w-md">{statusBanner}</span>
+              <span className="text-[#38BDF8] font-bold shrink-0 tabular-nums ml-2">
+                {lastSlapResult ? `${Math.round(lastSlapResult.slapForce)} N` : statusBanner}
+              </span>
             </div>
 
-            {/* 1P STORY: Phase 1 Cheek Alignment Tap Controls */}
-            {gameMode === 'STORY' && turnPhase === 'PLAYER_STRIKE_PREP' && (
-              <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2.5">
-                {(
-                  [
-                    { id: 'MID_CHEEK', label: 'Mid Cheek' },
-                    { id: 'JAWLINE_LEVER', label: 'Jawline' },
-                    { id: 'HIGH_TEMPLE', label: 'High Temple' },
-                  ] as { id: SlapAngle; label: string }[]
-                ).map((ang) => (
-                  <button
-                    key={ang.id}
-                    onClick={() => handleSelectCheekAngle(ang.id)}
-                    className={`min-h-[34px] px-2.5 font-mono text-[11px] uppercase tracking-wider border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                      selectedAngle === ang.id
-                        ? 'border-[#00F0FF] text-[#00F0FF] font-bold bg-[#00F0FF]/10'
-                        : 'border-transparent text-[#94A3B8] hover:text-white'
-                    }`}
-                  >
-                    {ang.label}
-                  </button>
-                ))}
-
-                <span className="text-white/20">|</span>
-
-                {([1, 2, 3] as WindUpCount[]).map((cnt) => (
-                  <button
-                    key={cnt}
-                    onClick={() => handleSelectWindUp(cnt)}
-                    className={`min-h-[34px] px-2.5 font-mono text-[11px] uppercase tracking-wider border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                      selectedWindUp === cnt
-                        ? 'border-[#D4AF37] text-[#FFF3B0] font-bold bg-[#D4AF37]/15'
-                        : 'border-transparent text-[#94A3B8] hover:text-white'
-                    }`}
-                  >
-                    On {cnt}
-                  </button>
-                ))}
-
-                {leftSpecialReady && (
-                  <button
-                    onClick={() => {
-                      const next = !leftSpecialActive;
-                      setLeftSpecialActive(next);
-                      sceneControllerRef.current?.setSpecialAura('LEFT', next);
-                    }}
-                    className={`min-h-[34px] px-2.5 font-mono text-[11px] uppercase border-b-2 cursor-pointer whitespace-nowrap shrink-0 ${
-                      leftSpecialActive
-                        ? 'border-[#00E676] text-[#00E676] font-bold bg-[#00E676]/15'
-                        : 'border-transparent text-[#94A3B8] hover:text-white'
-                    }`}
-                  >
-                    Special
-                  </button>
-                )}
-
-                {/* Dedicated TAUNT Button */}
-                <button
-                  onClick={handleTriggerTaunt}
-                  className="min-h-[34px] px-3 border border-[#F59E0B] text-[#F59E0B] hover:text-white font-mono text-[11px] uppercase font-bold cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
-                >
-                  TAUNT
-                </button>
-
-                <button
-                  onClick={handleLockCheekLineUp}
-                  className="min-h-[36px] px-4 bg-gradient-to-r from-[#D4AF37]/35 via-[#FFF3B0]/40 to-[#D4AF37]/35 border border-[#D4AF37] font-display text-xs sm:text-sm font-extrabold uppercase tracking-wider text-[#FFF3B0] hover:text-white shadow-[0_0_16px_rgba(212,175,55,0.4)] cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
-                >
-                  LOCK ALIGNMENT
-                </button>
-              </div>
-            )}
-
-            {/* 1P STORY: Phase 2-5 Flinch-Bait Torque, Fakeout Bluff & Unleash Slap */}
-            {gameMode === 'STORY' && turnPhase === 'PLAYER_STRIKE_METER' && (
-              <div className="w-full max-w-xl flex flex-col items-center gap-1.5">
-                <div className="relative w-full h-2.5 bg-white/10 overflow-hidden">
-                  <div
-                    className="absolute inset-y-0 bg-gradient-to-r from-[#00F0FF]/45 via-[#FACC15]/75 to-[#EF4444]/45"
-                    style={{ left: '34%', width: '32%' }}
-                  />
-                  <div
-                    className="absolute inset-y-0 w-2 bg-white shadow-[0_0_10px_#FFFFFF]"
-                    style={{ left: `calc(${timingCursor * 100}% - 4px)` }}
-                  />
-                </div>
-
-                <div className="flex flex-wrap items-center justify-center gap-2 w-full">
-                  <button
-                    onClick={handleTapPracticeSwing}
-                    className="min-h-[38px] px-3 bg-[#00F0FF]/15 border border-[#00F0FF] font-display text-xs sm:text-sm font-extrabold uppercase text-[#00F0FF] hover:text-white cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
-                  >
-                    TORQUE SWING (+{Math.round(torqueCharge * 25)}%)
-                  </button>
-
-                  <button
-                    onClick={handlePlayerTriggerFakeout}
-                    className="min-h-[38px] px-3 bg-[#F59E0B]/20 border border-[#F59E0B] font-display text-xs sm:text-sm font-extrabold uppercase text-[#F59E0B] hover:text-white cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
-                  >
-                    TRIGGER FAKEOUT
-                  </button>
-
-                  <button
-                    onClick={handleTriggerTaunt}
-                    className="min-h-[38px] px-3 border border-[#E2E8F0]/40 text-[#E2E8F0] hover:text-white font-mono text-[11px] uppercase font-bold cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
-                  >
-                    TAUNT
-                  </button>
-
-                  <button
-                    onClick={handlePlayerUnleashSlap}
-                    className="flex-1 min-h-[38px] px-4 bg-gradient-to-r from-[#D4AF37]/45 via-[#EF4444]/45 to-[#D4AF37]/45 border border-[#FFF3B0] font-display text-xs sm:text-base font-extrabold uppercase tracking-wider text-[#FFF3B0] hover:text-white shadow-[0_0_20px_rgba(245,158,11,0.55)] cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
-                  >
-                    UNLEASH SLAP!
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* 1P STORY: Defensive Chin Brace */}
-            {gameMode === 'STORY' && turnPhase === 'PLAYER_DEFENSE_BRACE' && (
-              <div className="w-full max-w-xl flex flex-col items-center gap-1.5">
-                <div className="relative w-full h-2.5 bg-white/10 overflow-hidden">
-                  <div
-                    className="absolute inset-y-0 bg-[#00F0FF]/55"
-                    style={{ left: '38%', width: '24%' }}
-                  />
-                  <div
-                    className="absolute inset-y-0 w-2 bg-white shadow-[0_0_10px_#FFFFFF]"
-                    style={{ left: `calc(${timingCursor * 100}% - 4px)` }}
-                  />
-                </div>
-                <div className="flex gap-2 w-full">
-                  <button
-                    onClick={handleTapChinBrace}
-                    className="flex-1 min-h-[38px] px-4 bg-[#00F0FF]/20 border border-[#00F0FF] font-display text-xs sm:text-base font-extrabold uppercase tracking-wider text-[#00F0FF] hover:text-white shadow-[0_0_16px_rgba(0,240,255,0.4)] cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
-                  >
-                    TAP TO BRACE CHIN &amp; ABSORB IMPACT!
-                  </button>
-                  <button
-                    onClick={handleTriggerTaunt}
-                    className="min-h-[38px] px-3 border border-[#F59E0B] text-[#F59E0B] hover:text-white font-mono text-[11px] uppercase font-bold cursor-pointer whitespace-nowrap shrink-0"
-                  >
-                    TAUNT
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* 10-COUNT KO RECOVERY MINI-GAME */}
-            {turnPhase === 'KO_RECOVERY_MINIGAME' && (
-              <div className="w-full max-w-xl flex flex-col items-center gap-1.5">
-                <div className="font-mono text-xs uppercase tracking-wider text-[#EF4444] font-bold tabular-nums">
-                  {activeKODef.name} · 10-Count: {(10 - tenCountSeconds).toFixed(1)}s / 10.0s
-                </div>
-                <div className="relative w-full h-2.5 bg-white/10 overflow-hidden">
-                  <div
-                    className="absolute inset-y-0 bg-[#00E676]/70"
-                    style={{
-                      left: `${(0.5 - activeKODef.recoveryWindowWidth * 0.5) * 100}%`,
-                      width: `${activeKODef.recoveryWindowWidth * 100}%`,
-                    }}
-                  />
-                  <div
-                    className="absolute inset-y-0 w-2 bg-white shadow-[0_0_10px_#FFFFFF]"
-                    style={{ left: `calc(${timingCursor * 100}% - 4px)` }}
-                  />
-                </div>
-                {gameMode === 'STORY' && downedSide === 'LEFT' ? (
-                  <button
-                    onClick={handlePlayerAttemptKORecovery}
-                    className="w-full min-h-[38px] px-5 bg-[#00E676]/25 border border-[#00E676] font-display text-xs sm:text-sm font-extrabold uppercase tracking-wider text-[#00E676] hover:text-white cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
-                  >
-                    TAP GREEN ZONE TO BEAT 10-COUNT!
-                  </button>
-                ) : (
-                  <span className="font-mono text-xs text-[#00F0FF]">
-                    Neural recovery check in progress...
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* A2A AUTONOMOUS MODE CONTROLS */}
-            {gameMode === 'A2A' && turnPhase !== 'KO_RECOVERY_MINIGAME' && (
-              <div className="flex flex-wrap items-center justify-center gap-3 text-xs font-mono">
-                <button
-                  onClick={() => setA2aPaused(!a2aPaused)}
-                  className="min-h-[34px] px-3 border border-[#D4AF37]/60 text-[#FFF3B0] hover:text-white font-bold uppercase cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  {a2aPaused ? 'Resume' : 'Pause'}
-                </button>
-                {[1, 2].map((spd) => (
-                  <button
-                    key={spd}
-                    onClick={() => setA2aSpeed(spd)}
-                    className={`min-h-[34px] px-2.5 cursor-pointer whitespace-nowrap shrink-0 ${
-                      a2aSpeed === spd
-                        ? 'text-[#00F0FF] font-bold border-b-2 border-[#00F0FF]'
-                        : 'text-[#94A3B8] hover:text-white'
-                    }`}
-                  >
-                    {spd}x
-                  </button>
-                ))}
-                <button
-                  onClick={handleTriggerTaunt}
-                  className="min-h-[34px] px-3 border border-[#F59E0B] text-[#F59E0B] hover:text-white font-bold uppercase cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  TAUNT
-                </button>
-                <button
-                  onClick={() => resetMatch()}
-                  className="min-h-[34px] px-2.5 text-[#94A3B8] hover:text-white uppercase cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  Reset
-                </button>
-                <span className="text-[#94A3B8] truncate max-w-xs">{a2aThoughtText}</span>
-              </div>
-            )}
-
-            {/* MATCH OVER CONTROLS */}
-            {turnPhase === 'MATCH_OVER' && (
-              <div className="flex flex-wrap items-center justify-center gap-3 font-display text-sm uppercase tracking-wider">
-                <span className="text-[#FFF3B0] font-extrabold">
-                  {matchWinner === 'LEFT'
-                    ? `${leftFighter.name} WINS`
-                    : matchWinner === 'RIGHT'
-                      ? `${rightFighter.name} WINS`
-                      : 'DRAW MATCH'}
-                </span>
-                <button
-                  onClick={handleTriggerTaunt}
-                  className="min-h-[36px] px-3 border border-[#F59E0B] text-[#F59E0B] hover:text-white font-bold cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  CELEBRATE
-                </button>
-                <button
-                  onClick={() => resetMatch()}
-                  className="min-h-[36px] px-3.5 border border-[#00F0FF] text-[#00F0FF] hover:text-white font-bold cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  Rematch
-                </button>
-                {gameMode === 'STORY' && matchWinner === 'LEFT' && storyChapter < 10 && (
-                  <button
-                    onClick={() => {
-                      const nextChap = storyChapter + 1;
-                      setStoryChapter(nextChap);
-                      resetMatch('STORY', nextChap);
-                    }}
-                    className="min-h-[36px] px-3.5 border border-[#D4AF37] text-[#FFF3B0] hover:text-white font-extrabold cursor-pointer whitespace-nowrap shrink-0"
-                  >
-                    Next: Ch. {storyChapter + 1}
-                  </button>
-                )}
-              </div>
-            )}
+            <div className="relative w-full h-3.5 bg-[#090D16] border-2 border-white shadow-[2px_2px_0_#000] overflow-hidden">
+              <div
+                className="absolute inset-y-0 bg-gradient-to-r from-[#1D4ED8] via-[#22C55E] to-[#1D4ED8]"
+                style={{ left: '0%', width: '100%' }}
+              />
+              {/* Center Golden Critical Sweet-Spot Zone */}
+              <div
+                className="absolute inset-y-0 bg-[#FACC15] border-x-2 border-white"
+                style={{ left: '42%', width: '16%' }}
+              />
+              {/* Oscillating Pixel Needle */}
+              <div
+                className="absolute inset-y-0 w-2 bg-white border border-black shadow-[0_0_8px_#FFF]"
+                style={{ left: `calc(${timingCursor * 100}% - 4px)` }}
+              />
+            </div>
           </div>
-        </footer>
-      )}
+
+          {/* Bottom 3-Column Arcade Control Row: Left Nameplate | [SLAP!] + [BRACE!] | Right Nameplate */}
+          <div className="grid grid-cols-12 items-center gap-2 sm:gap-4">
+            {/* Left Contender Nameplate Button */}
+            <div className="col-span-3 sm:col-span-3 flex items-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setGameMode('STORY');
+                  setPlayerFighterId('bezos');
+                  setStoryChapter(6);
+                  setTimeout(() => resetMatch('STORY', 6), 20);
+                }}
+                className="w-full min-h-[46px] sm:min-h-[52px] px-2 sm:px-3 py-1.5 border-2 bg-gradient-to-b from-[#2563EB] to-[#1E3A8A] border-[#FACC15] text-[#FEF08A] font-display text-xs sm:text-base font-black uppercase tracking-wider shadow-[4px_4px_0_#000] cursor-pointer active:translate-y-0.5 truncate"
+              >
+                {leftFighter.name.split(' ').slice(-1)[0]}
+              </button>
+            </div>
+
+            {/* Center: ROUND Banner + Massive Touch-Friendly [SLAP!] and [BRACE!] Buttons */}
+            <div className="col-span-6 sm:col-span-6 flex flex-col items-center justify-center gap-1">
+              <div className="bg-[#090D16] border border-[#FACC15] px-3 py-0.5 shadow-[2px_2px_0_#000]">
+                <span className="font-display text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-[#FACC15] tabular-nums">
+                  ROUND {round} OF {maxRounds}
+                </span>
+              </div>
+
+              <div className="w-full grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handlePlayerUnleashSlap}
+                  disabled={
+                    gameMode === 'A2A' ||
+                    turnPhase === 'WINDUP_ANIMATING' ||
+                    turnPhase === 'IMPACT_RESOLUTION' ||
+                    turnPhase === 'ROUND_TRANSITION'
+                  }
+                  className="w-full min-h-[46px] sm:min-h-[52px] px-3 py-1.5 bg-gradient-to-b from-[#FEF08A] via-[#FACC15] to-[#CA8A04] border-2 border-white text-[#090D16] font-display text-sm sm:text-xl font-black uppercase tracking-wider shadow-[0_4px_0_#713F12,0_0_16px_rgba(250,204,21,0.55)] cursor-pointer active:translate-y-1 disabled:opacity-45"
+                >
+                  SLAP!
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (turnPhase === 'PLAYER_DEFENSE_BRACE') {
+                      handleTapChinBrace();
+                    } else if (turnPhase === 'KO_RECOVERY_MINIGAME') {
+                      handlePlayerAttemptKORecovery();
+                    } else {
+                      handleTapPracticeSwing();
+                    }
+                  }}
+                  disabled={
+                    gameMode === 'A2A' ||
+                    turnPhase === 'WINDUP_ANIMATING' ||
+                    turnPhase === 'IMPACT_RESOLUTION' ||
+                    turnPhase === 'ROUND_TRANSITION'
+                  }
+                  className="w-full min-h-[46px] sm:min-h-[52px] px-3 py-1.5 bg-gradient-to-b from-[#38BDF8] via-[#0284C7] to-[#0369A1] border-2 border-white text-white font-display text-sm sm:text-xl font-black uppercase tracking-wider shadow-[0_4px_0_#0C4A6E,0_0_16px_rgba(56,189,248,0.45)] cursor-pointer active:translate-y-1 disabled:opacity-45"
+                >
+                  BRACE!
+                </button>
+              </div>
+            </div>
+
+            {/* Right Contender Nameplate Button */}
+            <div className="col-span-3 sm:col-span-3 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setGameMode('STORY');
+                  setPlayerFighterId('ellison');
+                  setStoryChapter(1);
+                  setTimeout(() => resetMatch('STORY', 1), 20);
+                }}
+                className="w-full min-h-[46px] sm:min-h-[52px] px-2 sm:px-3 py-1.5 border-2 bg-gradient-to-b from-[#DC2626] to-[#7F1D1D] border-[#FCA5A5] text-white font-display text-xs sm:text-base font-black uppercase tracking-wider shadow-[4px_4px_0_#000] cursor-pointer active:translate-y-0.5 truncate"
+              >
+                {rightFighter.name.split(' ').slice(-1)[0]}
+              </button>
+            </div>
+          </div>
+        </div>
+      </footer>
 
       {/* Modals */}
       <FighterCodexModal

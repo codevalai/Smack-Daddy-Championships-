@@ -43,7 +43,7 @@ export const FighterCodexModal: React.FC<FighterCodexModalProps> = ({
               Tech Titan Contender Roster & Biomechanical Profiles
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              10 Volumetric 3D Contenders · Power Slap Attributes · Signature Armor & A2A Intelligence
+              10 16-Bit Pixel-Art Contenders · Power Slap Attributes · Signature Abilities & A2A Intelligence
             </p>
           </div>
           <button
